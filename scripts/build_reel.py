@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Reusable builder for the investigative-explainer-reel skill (references/reel-format.md).
+Reusable builder for the building-explainer-reels skill (references/reel-format.md).
 
 Input: a JSON manifest of scenes. Output: a vertical 720x1280 mp4 (h264 +
 AAC 48 kHz stereo) with TTS narration, burned-in subtitles, an original

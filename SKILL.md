@@ -1,5 +1,5 @@
 ---
-name: investigative-explainer-reel
+name: building-explainer-reels
 description: Builds and reviews short investigative explainer reels in a thesis-first, voiceover-only reel format, with burned-in subtitles, real article receipts as on-screen evidence, and clearly labelled AI or real-clip material, with every build passed through an independent verification gate. Use whenever the user asks for an explainer reel, an investigative reel in this format, a hybrid AI-voice reel, an investigative video about a claim, a money/power chain, a disinformation story, a reel mixing real news screenshots with AI visuals, or a review/critique of such a reel, even if they do not name this skill.
 ---
 
