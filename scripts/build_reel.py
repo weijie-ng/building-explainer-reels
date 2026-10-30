@@ -923,6 +923,24 @@ def render_shot(sh, dur, work, name, warnings):
 
 # --- validation --------------------------------------------------------------
 
+def image_problem(path):
+    """Why an image asset is unusable, or None. Catches downloads a CDN served
+    as AVIF/WebP under a .png name that this Pillow can't read, and screenshots
+    taken before lazy images loaded (a flat grey or white box)."""
+    from PIL import Image, ImageStat
+    try:
+        with Image.open(path) as im:
+            im.load()
+            gray = im.convert("L")
+    except Exception as e:
+        return (f"cannot be read ({type(e).__name__}). Re-download as JPEG or PNG "
+                "(send 'Accept: image/jpeg', or use f_jpg instead of f_auto).")
+    if ImageStat.Stat(gray).stddev[0] < 4:
+        return ("is almost blank (one flat colour). Likely captured before its images "
+                "loaded; scroll them into view, wait for them to load, and recapture.")
+    return None
+
+
 def validate(scenes, args):
     errors, warnings = [], []
     units = [(i, j, scene, s) for i, scene in enumerate(scenes)
@@ -947,6 +965,12 @@ def validate(scenes, args):
         for key in ("image", "clip", "audio"):
             if s.get(key) and not os.path.exists(s[key]):
                 errors.append(f"scene {sid}: {key} file not found: {s[key]}")
+        p = s.get("pointer") if isinstance(s.get("pointer"), dict) else {}
+        for path in (s.get("image"), p.get("image")):
+            if path and os.path.exists(path):
+                problem = image_problem(path)
+                if problem:
+                    errors.append(f"scene {sid}: {path}: {problem}")
         if "weight" in s and not (isinstance(s["weight"], (int, float)) and s["weight"] > 0):
             errors.append(f"scene {sid}: shot 'weight' must be a number above 0, got {s['weight']!r}.")
         if s.get("timeline") is not None and not s["timeline"].get("events"):
