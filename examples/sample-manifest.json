@@ -1,0 +1,261 @@
+{
+  "title": "Sample reel (manifest shape)",
+  "output": "sample_reel.mp4",
+  "max_duration": 60,
+  "music_bed": true,
+  "scenes": [
+    {
+      "id": "hook-ai",
+      "narration": "A market crash.",
+      "material": "ai",
+      "headline": "MARKET CRASH",
+      "clip": "market_crash_ai.mp4"
+    },
+    {
+      "id": "hook-real",
+      "narration": "A made-up meeting.",
+      "material": "real",
+      "headline": "MARKET CRASH",
+      "image": "idx.jpg",
+      "image_source": "BILYONARYO • IDX, OCT 2026",
+      "keep": [
+        0.25,
+        0.1,
+        0.75,
+        0.7
+      ]
+    },
+    {
+      "id": "clip",
+      "narration": "On 19 October, Muhammad Lutfi alleged, without evidence, that Singapore pulled the strings.",
+      "material": "real",
+      "label": "ALLEGATION",
+      "headline": "THE CLAIM",
+      "yellow_words": [
+        "CLAIM"
+      ],
+      "clip": "lutfi_clip.mp4",
+      "clip_start": 0.0,
+      "clip_mask": [
+        [
+          4,
+          100,
+          556,
+          280
+        ],
+        [
+          80,
+          920,
+          560,
+          120
+        ]
+      ],
+      "image_source": "REAL CLIP • @m.lutfi, 19 OCT"
+    },
+    {
+      "id": "diagram",
+      "narration": "Through GIC and Temasek, pressured index provider MSCI over Indonesia.",
+      "material": "diagram",
+      "label": "ALLEGATION",
+      "headline": "THE CHAIN",
+      "yellow_words": [
+        "CHAIN"
+      ],
+      "diagram": {
+        "nodes": [
+          "LUTFI",
+          "SINGAPORE / GIC / TEMASEK",
+          "MSCI",
+          "IDX"
+        ],
+        "stage": 4,
+        "reveal": true
+      }
+    },
+    {
+      "id": "meeting",
+      "narration": "Then came a second claim, that Dino Patti Djalal and Saiful Mujani met Singapore's ambassador.",
+      "material": "real",
+      "label": "ALLEGED MEETING",
+      "disinformation": "CNA Verify",
+      "headline": "MET THE AMBASSADOR",
+      "yellow_words": [
+        "MET"
+      ],
+      "image": "meeting_posts.jpg",
+      "image_source": "CNA • MEETING-CLAIM POSTS",
+      "keep": [
+        0.0,
+        0.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "id": "denial-card",
+      "narration": "Dino, Saiful, and the Singapore embassy said no such visit took place.",
+      "material": "recreated",
+      "label": "DENIED",
+      "label_color": "green",
+      "card": {
+        "outlet": "THE STRAITS TIMES",
+        "headline": "Singapore embassy rejects meeting claim",
+        "yellow_words": [
+          "rejects"
+        ],
+        "faint_body": "The embassy dismissed the alleged visit as disinformation.",
+        "key_sentence": "No such visit took place."
+      }
+    },
+    {
+      "id": "denial-x",
+      "narration": "The chain was denied.",
+      "material": "diagram",
+      "label": "DENIED",
+      "label_color": "green",
+      "headline": "CHAIN DENIED",
+      "yellow_words": [
+        "DENIED"
+      ],
+      "diagram": {
+        "nodes": [
+          "LUTFI",
+          "SINGAPORE / GIC / TEMASEK",
+          "MSCI",
+          "IDX"
+        ],
+        "stage": "X"
+      }
+    },
+    {
+      "id": "gas-map",
+      "narration": "Indonesia did reduce gas exports on 24 October, for domestic supply reasons.",
+      "material": "diagram",
+      "headline": "GAS FLOW",
+      "yellow_words": [
+        "GAS"
+      ],
+      "map": {
+        "land": "ne_10m_land.geojson",
+        "bbox": [
+          98.0,
+          -6.5,
+          109.0,
+          6.5
+        ],
+        "markers": [
+          {
+            "name": "SINGAPORE",
+            "lon": 103.82,
+            "lat": 1.35
+          }
+        ],
+        "arrow": [
+          [
+            103.0,
+            -1.5
+          ],
+          [
+            103.75,
+            1.2
+          ]
+        ]
+      }
+    },
+    {
+      "id": "distinction",
+      "narration": "The gas cut is real. Tying it to MSCI interference is false.",
+      "material": "real",
+      "label": "GAS CUT = REAL",
+      "label_color": "green",
+      "headline": "TYING IT TO MSCI = FALSE",
+      "yellow_words": [
+        "FALSE"
+      ],
+      "image": "gas_cut_photo.jpg",
+      "image_source": "CNA • GAS-CUT ARTICLE, 26 OCT 2026",
+      "keep": [
+        0.15,
+        0.05,
+        0.8,
+        0.95
+      ]
+    },
+    {
+      "id": "shots-example",
+      "narration": "Two outlets reported the denial the same morning.",
+      "material": "real",
+      "label": "DENIED",
+      "label_color": "green",
+      "shots": [
+        {
+          "image": "photo_a.jpg",
+          "image_source": "OUTLET A • 25 OCT 2026",
+          "headline": "DENIED",
+          "keep": [
+            0.2,
+            0.1,
+            0.8,
+            0.9
+          ]
+        },
+        {
+          "image": "photo_b.jpg",
+          "image_source": "OUTLET B • 25 OCT 2026",
+          "headline": "DENIED AGAIN",
+          "keep": [
+            0.1,
+            0.2,
+            0.9,
+            0.8
+          ],
+          "weight": 2
+        }
+      ]
+    },
+    {
+      "id": "timeline",
+      "narration": "It began on 19 October; the denials followed within a week.",
+      "material": "diagram",
+      "headline": "HOW IT UNFOLDED",
+      "yellow_words": [
+        "UNFOLDED"
+      ],
+      "image_source": "ALL DATES 2026",
+      "timeline": {
+        "events": [
+          {
+            "time": "19 OCT",
+            "text": "The claim is posted",
+            "source": "@m.lutfi ON X"
+          },
+          {
+            "time": "21 OCT",
+            "text": "GIC and Temasek deny it",
+            "source": "CNA"
+          },
+          {
+            "time": "25 OCT",
+            "text": "The embassy denies the meeting",
+            "source": "THE STRAITS TIMES"
+          }
+        ]
+      }
+    },
+    {
+      "id": "end",
+      "narration": "Check before you share. See the full story.",
+      "material": "recreated",
+      "end_card": true,
+      "headline": "CHECK BEFORE YOU SHARE",
+      "yellow_words": [
+        "CHECK"
+      ],
+      "pointer": {
+        "outlet": "CNA VERIFY",
+        "image": "cna_verify_headline.png"
+      },
+      "disclosure": "AI voice · AI illustrations (Muse) · Sources: CNA, The Straits Times, CNA Verify"
+    }
+  ]
+}
