@@ -20,6 +20,12 @@ ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,r_
 ffmpeg -i R -af ebur128 -f null - 2>&1 | tail -12
 # Silence gaps
 ffmpeg -i R -af silencedetect=n=-45dB:d=0.3 -f null - 2>&1 | grep silence_
+# Word-cut check: RMS of the first and last 20ms of each trimmed narration file (W = build workdir)
+for f in W/scene[0-9]*.wav; do case $f in *_audio.wav) continue;; esac
+  d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
+  h=$(ffmpeg -t 0.02 -i "$f" -af astats -f null - 2>&1 | grep "RMS level" | tail -1)
+  t=$(ffmpeg -ss $(python3 -c "print($d-0.02)") -i "$f" -af astats -f null - 2>&1 | grep "RMS level" | tail -1)
+  echo "$f head:${h##*:} tail:${t##*:}"; done
 # Cut times (also check against the shot list: similar-looking cuts may not register)
 ffmpeg -i R -vf "select='gt(scene,0.3)',showinfo" -f null - 2>&1 | grep -o "pts_time:[0-9.]*"
 # Holds over 1s
@@ -43,7 +49,7 @@ Inspect the images themselves; do not infer them from the commands' output.
 - [ ] **B1 Duration**: within the agreed length (default under 60s), and matches the shot list's total within 0.1s. The video stream is not shorter than the audio.
 - [ ] **B2 Specs**: 720×1280, h264, AAC 48 kHz stereo.
 - [ ] **B3 Loudness**: integrated loudness between −15.5 and −13.5 LUFS (target −14).
-- [ ] **B4 Silence**: no gap over 0.3s except the final 0.5s; no narration word cut (listen at every cut point).
+- [ ] **B4 Silence and word cuts**: no gap over 0.3s except the final 0.5s. No agent can hear the audio, so measure word cuts: in the build workdir, every trimmed narration file `sceneN.wav` must start and end in silence, with the first and last 20ms below −45 dBFS RMS (commands in A). FAIL with the file and level if either edge is louder; speech at the edge means a word was clipped. Report that a human listen-through is still needed, because a word dropped inside a line by TTS cannot be measured this way.
 - [ ] **B5 Shot length**: no shot over 4s except headline cards and timeline shots (≤5s); shots mostly 1–3s.
 - [ ] **B6 Holds**: list every freezedetect hold over 1s with its timestamp. FAIL if a frame is frozen across a cut, or if a shot never changes at all (it should at least creep).
 - [ ] **B7 Clean cuts**: on the 2 fps sheets and around each cut, no frame from a previous scene leaks across a cut, and no frame mixes two layouts.

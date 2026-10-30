@@ -1205,8 +1205,8 @@ def main():
             # just above digital silence; tested on the Binance preview.
             audio = os.path.join(work, f"scene{i}.wav")
             run(["ffmpeg", "-y", "-v", "error", "-i", raw, "-af",
-                 "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,"
-                 "areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.02,areverse,"
+                 "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.06,"
+                 "areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.06,areverse,"
                  "silenceremove=start_periods=0:stop_periods=-1:stop_duration=0.15:"
                  "stop_threshold=-40dB:stop_silence=0.12",
                  audio])
