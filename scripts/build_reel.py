@@ -21,7 +21,7 @@ Manifest (see examples/sample-manifest.json):
     "id": "hook",
     "narration": "A market crash. A made-up meeting.",
     "material": "real",            // REQUIRED: real | ai | recreated | diagram
-    "headline": "MARKET CRASH",    // 2-4 words; wrapped at 640px
+    "headline": "MARKET CRASH",    // 2-4 words, at most 6; wrapped at 640px
     "yellow_words": ["MARKET"],    // optional; default = first word yellow
     "label": "UNCONFIRMED",        // optional status tag; "label_color":
                                    // red (alleged/disputed/false) | green
@@ -47,9 +47,12 @@ Manifest (see examples/sample-manifest.json):
 }                                  // by "weight" (default 1)
 
 Scene types:
-- card: {"outlet", "headline", "yellow_words", "faint_body", "key_sentence"}.
-  Headline card in the reel's own style; the key sentence is highlighted word by word over
-  the first part of the shot, then holds.
+- card: {"outlet", "headline" (at most 10 words), "yellow_words", "faint_body", "key_sentence",
+  "image", "keep", "image_source"}. Headline card in the reel's own style; the
+  key sentence is highlighted word by word over the first part of the shot,
+  then holds. "image" (credited by "image_source") fills the whole frame
+  behind the card, centred on "keep", with dark gradients behind the text;
+  required when the card opens the reel.
 - diagram: {"nodes": [...], "stage": int | "X", "reveal": true,
   "cross_after": 1}. "reveal" shows
   nodes one at a time, continuing from the nodes an earlier shot of the same
@@ -501,24 +504,80 @@ def render_card(scene, dur):
     tag_layer, top = text_layer({k: scene[k] for k in ("label", "label_color", "disinformation")
                                  if k in scene}, with_source=False)
 
+    def full_bleed_picture():
+        """The card's image cover-cropped to the full frame, centred on its
+        keep box so the relevant part stays in view."""
+        pic = Image.open(card["image"]).convert("RGB")
+        iw, ih = pic.size
+        k = card.get("keep", (0, 0, 1, 1))
+        s = max(W / iw, H / ih)
+        cx = min(max((k[0] + k[2]) / 2 * iw * s, W / 2), iw * s - W / 2)
+        cy = min(max((k[1] + k[3]) / 2 * ih * s, H / 2), ih * s - H / 2)
+        pic = pic.resize((max(W, round(iw * s)), max(H, round(ih * s))), Image.LANCZOS)
+        return pic.crop((round(cx - W / 2), round(cy - H / 2),
+                         round(cx - W / 2) + W, round(cy - H / 2) + H))
+
+    def scrim(head_end, block_top):
+        """Dark gradients behind the top text and the bottom text, leaving the
+        middle of the picture clear."""
+        grad = Image.new("L", (1, H))
+        for yy in range(H):
+            top_a = 185 if yy <= head_end else max(0, 185 * (1 - (yy - head_end) / 110))
+            bot_a = 205 if yy >= block_top else max(0, 205 * (1 - (block_top - yy) / 150))
+            grad.putpixel((0, yy), int(max(top_a, bot_a)))
+        return grad.resize((W, H))
+
+    cache = {}
+
     def frame(n_lit):
-        im = Image.new("RGB", (W, H), BG)
-        d = ImageDraw.Draw(im)
-        y = top
         f_out = font(MONO_BOLD, 26)
-        for line in wrap(d, card["outlet"], f_out, HEADLINE_WRAP):
-            d.text((40, y), line, font=f_out, fill=(170, 185, 210))
-            y += 34
-        y = draw_headline(d, y + 12, card["headline"], card.get("yellow_words"))
-        d.line([(70, y + 20), (70, y + 140)], fill=YELLOW, width=4)
-        d.ellipse([58, y + 140, 82, y + 164], fill=YELLOW)
-        y += 190
-        f2 = font(REG, 26)
-        for line in wrap(d, card.get("faint_body", ""), f2, 560):
+        f2, f3 = font(REG, 26), font(BOLD, 34)
+        body = card.get("faint_body", "")
+        if card.get("image"):
+            # Full-frame picture card: outlet and headline at the top, the
+            # line-and-dot, body and key sentence anchored above the subtitles,
+            # dark gradients behind both so every line stays readable.
+            probe = ImageDraw.Draw(Image.new("RGB", (W, H)))
+            key_lines = wrap(probe, card.get("key_sentence", ""), f3, 580)
+            body_lines = wrap(probe, body, f2, 560)
+            key_top = KEEP_BOTTOM - (len(key_lines) * 46 + 24)
+            body_top = key_top - 30 - len(body_lines) * 36
+            dot_top = body_top - 70
+            if "base" not in cache:
+                im = full_bleed_picture()
+                d = ImageDraw.Draw(im)
+                y = top + 34 * len(wrap(d, card["outlet"], f_out, HEADLINE_WRAP))
+                head_end = draw_headline(ImageDraw.Draw(Image.new("RGB", (W, H))), y + 12,
+                                         card["headline"], card.get("yellow_words"))
+                im.paste(Image.new("RGB", (W, H), BLACK), (0, 0), scrim(head_end + 50, dot_top - 10))
+                cache["base"] = im
+            im = cache["base"].copy()
+            d = ImageDraw.Draw(im)
+            y = top
+            for line in wrap(d, card["outlet"], f_out, HEADLINE_WRAP):
+                d.text((40, y), line, font=f_out, fill=(200, 210, 230))
+                y += 34
+            y = draw_headline(d, y + 12, card["headline"], card.get("yellow_words"))
+            if card.get("image_source"):
+                d.text((40, y + 10), card["image_source"], font=font(REG, 18), fill=SOURCE_TEXT)
+            d.line([(70, dot_top + 6), (70, dot_top + 40)], fill=YELLOW, width=4)
+            d.ellipse([58, dot_top + 40, 82, dot_top + 64], fill=YELLOW)
+            y = body_top
+        else:
+            im = Image.new("RGB", (W, H), BG)
+            d = ImageDraw.Draw(im)
+            y = top
+            for line in wrap(d, card["outlet"], f_out, HEADLINE_WRAP):
+                d.text((40, y), line, font=f_out, fill=(170, 185, 210))
+                y += 34
+            y = draw_headline(d, y + 12, card["headline"], card.get("yellow_words"))
+            d.line([(70, y + 20), (70, y + 140)], fill=YELLOW, width=4)
+            d.ellipse([58, y + 140, 82, y + 164], fill=YELLOW)
+            y += 190
+        for line in wrap(d, body, f2, 560):
             d.text((110, y), line, font=f2, fill=FAINT)
             y += 36
         y += 30
-        f3 = font(BOLD, 34)
         lines = wrap(d, card.get("key_sentence", ""), f3, 580)
         d.rectangle([40, y, 680, y + len(lines) * 46 + 24], fill=PANEL)
         yy, k = y + 12, 0
@@ -750,7 +809,7 @@ def render_timeline(scene, dur):
     return [(frame(k), layer, (k - 1) * step) for k in range(1, len(events) + 1)]
 
 
-def render_end_card(scene):
+def render_end_card(scene, warnings):
     from PIL import Image, ImageDraw
     im = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(im)
@@ -761,8 +820,14 @@ def render_end_card(scene):
         # A screenshot of the article itself (headline and byline), shown
         # whole within 640x420 (never upscaled), with a thin white frame.
         y += 40
-        shot_img = Image.open(p["image"]).convert("RGB")
+        raw = Image.open(p["image"]).convert("RGBA")
+        shot_img = Image.new("RGB", raw.size, WHITE)       # transparent areas go white, not black
+        shot_img.paste(raw, (0, 0), raw)
         shot_img.thumbnail((640, 420), Image.LANCZOS)
+        if shot_img.width < 480 and shot_img.height < 420:
+            warnings.append(f"scene {scene.get('id')}: end-card screenshot is only "
+                            f"{shot_img.width}x{shot_img.height}px on screen; recapture it larger "
+                            "(about 1000px wide) so its text is readable.")
         x0 = (W - shot_img.width) // 2
         d.rectangle([x0 - 4, y - 4, x0 + shot_img.width + 3, y + shot_img.height + 3], fill=WHITE)
         im.paste(shot_img, (x0, y))
@@ -796,6 +861,10 @@ def render_end_card(scene):
         for line in wrap(d, scene["disclosure"], f, 640):
             d.text((40, yy), line, font=f, fill=SOURCE_TEXT)
             yy += 24
+        y = yy
+    if y > KEEP_BOTTOM:
+        warnings.append(f"scene {scene.get('id')}: end card runs to y={y}, into the subtitle "
+                        f"area (below {KEEP_BOTTOM}); shorten the disclosure or the closing line.")
     return [(im, None, 0.0)]
 
 
@@ -910,7 +979,7 @@ def render_shot(sh, dur, work, name, warnings):
     elif sh.get("timeline"):
         stages = render_timeline(sh, dur)
     elif sh.get("end_card"):
-        stages = render_end_card(sh)
+        stages = render_end_card(sh, warnings)
     elif sh.get("image"):
         stages = render_still(sh, warnings)
     else:
@@ -966,7 +1035,7 @@ def validate(scenes, args):
             if s.get(key) and not os.path.exists(s[key]):
                 errors.append(f"scene {sid}: {key} file not found: {s[key]}")
         p = s.get("pointer") if isinstance(s.get("pointer"), dict) else {}
-        for path in (s.get("image"), p.get("image")):
+        for path in (s.get("image"), p.get("image"), (s.get("card") or {}).get("image")):
             if path and os.path.exists(path):
                 problem = image_problem(path)
                 if problem:
@@ -978,8 +1047,23 @@ def validate(scenes, args):
         for ev in (s.get("timeline") or {}).get("events", []):
             if not ev.get("time") or not ev.get("text"):
                 errors.append(f"scene {sid}: every timeline event needs 'time' and 'text'.")
+        if s.get("headline") and len(s["headline"].split()) > 6:
+            errors.append(f"scene {sid}: headline has {len(s['headline'].split())} words; "
+                          "the limit is 6 per shot (aim for 2-4).")
         if s.get("card") and not all(s["card"].get(k) for k in ("outlet", "headline")):
             errors.append(f"scene {sid}: card needs 'outlet' and 'headline'.")
+        elif s.get("card") and len(s["card"]["headline"].replace("…", " ").split()) > 10:
+            errors.append(f"scene {sid}: card headline has "
+                          f"{len(s['card']['headline'].replace('…', ' ').split())} words; the limit "
+                          "is 10. Trim it to a verbatim excerpt, marking cut words with an ellipsis.")
+        card_img = (s.get("card") or {}).get("image")
+        if card_img and not os.path.exists(card_img):
+            errors.append(f"scene {sid}: card image not found: {card_img}")
+        elif card_img and not s["card"].get("image_source"):
+            errors.append(f"scene {sid}: card image needs 'image_source' (e.g. 'IMAGE: CNA, 29 OCT 2026').")
+        if s.get("card") and i == 0 and j == 0 and not card_img:
+            errors.append(f"scene {sid}: a headline card that opens the reel needs a representative "
+                          "'image' on the card (see SKILL.md, Headline cards).")
         if s.get("diagram") and not s["diagram"].get("nodes"):
             errors.append(f"scene {sid}: diagram needs 'nodes'.")
         p = s.get("pointer")
@@ -1066,6 +1150,8 @@ def main():
         # Resolve asset paths relative to the manifest (scenes and shots).
         if s.get("fit_image") and not s.get("image"):
             s["image"] = s["fit_image"]   # legacy key; fit is now the default
+        if isinstance(s.get("card"), dict) and s["card"].get("image")                 and not os.path.isabs(s["card"]["image"]):
+            s["card"]["image"] = os.path.join(base_dir, s["card"]["image"])
         for key in ("image", "clip", "audio"):
             if s.get(key) and not os.path.isabs(s[key]):
                 s[key] = os.path.join(base_dir, s[key])

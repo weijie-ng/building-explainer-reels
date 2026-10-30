@@ -83,7 +83,7 @@ Each row is a defect that reached a render of this reel, the rule that now preve
 | Blob map with the wrong geography, shown twice | Natural Earth map, shown once | D8 |
 | Tags on plain blue with no image | Every shot has a representative image | D4 |
 | Headlines in the top 120px, under the Instagram UI | Safe area | D1 |
-| Paragraph text repeating the subtitle | At most a 2–4 word headline | D5 |
+| Paragraph text repeating the subtitle | At most a 6-word headline | D5 |
 | Subtitles as 3-line blocks, opening mid-sentence or ending on "the" | 2–5 word phrase-boundary chunks | D6 |
 | The clip's own captions under ours; a black band below the clip | Mask with measured delogo boxes; real clips full frame | C8 |
 | −27 LUFS with dead air; later 96 kHz mono | −14 LUFS, music bed, 48 kHz stereo | B3, B4, B2 |
