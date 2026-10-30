@@ -30,7 +30,7 @@ Under 60 seconds by default (about 130–140 words for 55s). If the user asks fo
 4. **Two or three supporting details.** Concrete examples or context that illustrate the pattern; they do not prove it. Say so if the reel would imply otherwise.
 5. **What's confirmed vs what isn't.** Put each claim's counterpart on screen in the same scene: a denial next to its claim, a confirmed figure next to an estimate, the company's statement next to the outside account. Never merge a confirmed fact and an unconfirmed claim into one statement.
 6. **Timeline (optional, for developing stories).** Just before the end card, a timeline of the key events with times and sources, so the viewer leaves with the sequence straight. Every event must come from facts.md. Two shots of three events each, about 4–5s per shot, so each line can be read.
-7. **Funnel ending (last 4–5s).** Dark end card, a closing line that fits the story (for example "Check before you share" for disinformation, or "This story is still developing" for breaking news), a pointer to the full story, one disclosure line.
+7. **Funnel ending (last 4–5s).** End card on the background blue, a closing line that fits the story (for example "Check before you share" for disinformation, or "This story is still developing" for breaking news), a screenshot of the full article as the pointer, one disclosure line.
 
 ## Tone and sourcing
 
@@ -110,7 +110,15 @@ Rules:
 1. **A representative image from an article you cite**: its lead photo or cover art (og:image) or an inline photo or chart. Credit it as "IMAGE: OUTLET, DATE". Check what it actually shows: archive or stock photos from years ago are fine as illustration, but never present them as the event itself.
 2. **A representative image found by searching** coverage of the same story from reputable outlets or agencies, or a freely licensed image (for example Wikimedia Commons) with its credit.
 3. **A screenshot of the source**, cropped to the claim (rules below), when no picture fits or the wording itself is the point.
-4. **A headline card**, only when none of the above exists.
+4. **A labelled AI illustration** of the concept (frozen funds, a paused queue, a laptop), within the AI-material rules.
+5. **A headline card**, the last resort. A headline on plain blue is the weakest shot in the reel; at most 2 per reel, not counting the end card.
+
+**When an image has too much text (fails D5), repair the shot; don't fall back to blue.** Try these in order and stop at the first that passes:
+1. **Re-crop.** Shrink the keep box to the photo, chart or logo on the page, or to the account name plus the one or two claim lines (about 25 words).
+2. **Swap for the article's picture.** Use the same article's lead photo (og:image) or an inline photo or chart, credited "IMAGE: OUTLET, DATE".
+3. **Find another source.** Search other reputable coverage, the primary source, or Wikimedia Commons for a photo of the same subject, or a shorter post stating the same claim.
+4. **Illustrate with AI.** Generate a labelled AI illustration of the concept, if the AI-material rules allow it for this beat.
+5. **Headline card**, only after 1–4 fail. Record in facts.md, under "Visual fallbacks", what was tried at each step and why it failed. The verifier checks this log.
 
 Vary the subjects across the reel: if most shots end up showing the same logo, look for photos of the people, places, or objects in the story instead. For freely licensed photos (Wikimedia Commons: search with `commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=…`, then read each file's licence, author and date):
 - Credit the photographer, year and licence on screen (for example "PHOTO: GAGE SKIDMORE, 2025, CC BY-SA 3.0"), and record it in facts.md.
@@ -129,7 +137,7 @@ Vary the subjects across the reel: if most shots end up showing the same logo, l
 
 A plain article photo or thumbnail is shown with outlet and date; it is not a screenshot of the page, so don't call it one.
 
-**Headline cards.** Use one only where no screenshot shows the wording. Quote only established wording. Outlet name, the outlet's actual headline wording where known, single-word yellow highlights, line-and-dot to faint body text (≥22px, readable), and the key sentence highlighted. Fill the card with no blank half. Use each card once. Set it in the reel's own style, never in the outlet's page design or logo, so it can't be mistaken for a screenshot.
+**Headline cards.** Use one only when the repair ladder above found no picture, screenshot or AI illustration. Quote only established wording. Outlet name, the outlet's actual headline wording where known, single-word yellow highlights, line-and-dot to faint body text (≥22px, readable), and the key sentence highlighted. Fill the card with no blank half. Use each card once. Set it in the reel's own style, never in the outlet's page design or logo, so it can't be mistaken for a screenshot.
 
 **Diagram.** One chain, with nodes revealed on the narrated word. Each link carries the status of the claim it represents. When a link is denied or disproved, a red ✗ appears on it at that beat. Check every node name against the facts sheet.
 
@@ -141,7 +149,12 @@ A plain article photo or thumbnail is shown with outlet and date; it is not a sc
 
 **Audio.** About −14 LUFS integrated: gentle compression (threshold −28 dB, ratio 12, makeup 12 dB) before loudnorm, because loudnorm alone stops short on true-peak limiting. Use an original low music bed (generated tones, no copyrighted music) with the voice clearly on top. Inter-sentence gaps of 0.15s; no silence over 0.3s except the final 0.5s; no narration words cut. Export 48 kHz stereo AAC at 192k (the default bitrate overshot true peak).
 
-**End card.** On the background blue; the closing line; a pointer to the full story, preferably a screenshot of the referenced article's headline and byline (`pointer.image`), otherwise a headline card (never a fake poster); one small disclosure line naming the AI voice, any AI illustrations and the sources. No silence after the final narration.
+**End card.** On the background blue; the closing line; a pointer to the full story that is a **real screenshot** of a referenced article page (`pointer.image`), showing the outlet's name or masthead, the headline, the byline and a date (in the screenshot, or the capture date in `pointer.captured`), plus the lead photo when it fits, so it reads as the article itself and not a typed card. Relative times ("13 hours ago") go stale; handle them in this order, cheapest first:
+  1. **At capture**, crop to the outlet name, headline and byline, leave the relative time out, and record the capture date in `pointer.captured` ("30 OCT 2026"); the build prints it under the screenshot.
+  2. If the relative time sits inside the headline or byline block and can't be cropped out cleanly, recapture a view that shows an absolute date: the article page first, an archived copy only as a last resort.
+  3. Never mask, blur or retype text inside a screenshot; it is a receipt.
+
+  If one article blocks capture (paywall, bot wall), capture another article listed in facts.md. A headline-card pointer (`pointer.headline`, never a fake poster) is allowed only when no referenced article can be captured, with the attempts logged under "Visual fallbacks" in facts.md and `pointer.no_screenshot` set to the reason; one small disclosure line naming the AI voice, any AI illustrations and the sources. No silence after the final narration.
 
 ## Build pitfalls (each one has broken a past build)
 
@@ -171,7 +184,7 @@ Reel progress:
 1. **Confirm before building.** Topic, length (default under 60s), and loaded argument-led tone or neutral tone. Do not reinterpret an ambiguous topic.
 2. **Facts sheet.** Write `facts.md`: each claim with its status tag, its denial, the source and date for every figure and quote, and the careful distinction. For a developing story, add a timeline table (time with time zone, event, source) for the timeline beat. Cut anything that cannot be sourced. The verifier checks the reel against this file.
 3. **Script.** About 130–140 words for 55s. Keep every line at the source's strength: "impact" stays "impact" (not "lost"), "likely" stays "likely" (not "did it" or "blame"), "may be" stays "may be", estimates keep "about". Credit wording to whoever said it: news outlets are not "analysts". Re-check the whole transcript against facts.md every time a line changes, including trims to fit the length. Give every claim its status tag, and put each claim's counterpart (denial, confirmed figure, statement) in the same scene. Then read the script aloud against "Write like a person talking" (Tone and sourcing) and check it with C13 in `references/verification-checklist.md`: rewrite failing lines and scene changes, recheck accuracy (C12), and repeat until both pass.
-4. **Shot list and assets.** One representative image per shot, chosen in the order in "Choosing the visual for a beat": article images first, then searched or freely licensed photos, then screenshots cropped to the claim (captured in UTC, claim visible, ads and banners cropped out), then headline cards. Set a `keep` box for every image. Capture the end card's pointer as a screenshot of a referenced article's headline and byline. Generate AI illustrations only within the AI-material rules. Record each asset's file, source, date and licence in facts.md.
+4. **Shot list and assets.** One representative image per shot, chosen in the order in "Choosing the visual for a beat": article images first, then searched or freely licensed photos, then screenshots cropped to the claim (captured in UTC, claim visible, ads and banners cropped out), then AI illustrations, then headline cards as a last resort. Any image with too much text goes through the repair ladder before it is dropped. Set a `keep` box for every image. Capture the end card's pointer as a screenshot of a referenced article page (outlet name, headline, byline; relative times cropped out at capture, capture date recorded; see "End card"). Generate AI illustrations only within the AI-material rules. Record each asset's file, source, date and licence in facts.md.
 5. **Manifest and dry run.** Write the JSON manifest (see `examples/sample-manifest.json`) with `material` on every scene. Run `python3 scripts/build_reel.py manifest.json --dry-run` to check timings and word count.
 6. **Build.** Run `python3 scripts/build_reel.py manifest.json --out reel.mp4 --workdir <dir>`. The script handles:
    - TTS narration, phrase-chunked subtitles, the music bed and loudness;
@@ -219,7 +232,7 @@ ACCEPTED TRADE-OFFS (if any): ...
 ```
 
 **Gate rules.**
-- Any FAIL blocks delivery. The builder fixes the failures, rebuilds, and starts a **new** fresh verifier. Do not reuse the previous one, and do not tell the new one what was fixed.
+- Any FAIL blocks delivery. The builder fixes the failures, rebuilds, and starts a **new** fresh verifier. Fix a D5 (too much text) FAIL with the repair ladder in "Choosing the visual for a beat", not by swapping in a headline card. Do not reuse the previous one, and do not tell the new one what was fixed.
 - After 3 failed rounds, stop. Deliver the latest build to the user clearly marked "not passed", with the verifier's open FAIL items. Never present it as passed.
 - The builder may not overrule a FAIL. If the builder believes a FAIL is wrong (for example, an intentional still hold flagged as a freeze), say so to the user with the evidence, and let the user decide.
 - If the platform cannot run a separate agent, run the verification as a distinct pass in a clean context: reload only the inputs listed above, and do not rely on build notes. State in the delivery notes that the gate was self-run, not independent.

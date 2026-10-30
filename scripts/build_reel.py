@@ -52,8 +52,10 @@ Scene types:
   the first part of the shot, then holds.
 - diagram: {"nodes": [...], "stage": int | "X", "reveal": true,
   "cross_after": 1}. "reveal" shows
-  nodes one at a time; stage "X" shows all nodes, then snaps a red X onto the
-  arrow leaving node "cross_after" (default 1, the second arrow).
+  nodes one at a time, continuing from the nodes an earlier shot of the same
+  diagram already showed ("from": n overrides); stage "X" shows all nodes,
+  then snaps a red X onto the arrow leaving node "cross_after" (default 1,
+  the second arrow).
 - map: {"land": "ne_10m_land.geojson", "bbox": [lon0, lat0, lon1, lat1],
   "markers": [{"name", "lon", "lat"}], "arrow": [[lon, lat], [lon, lat]]}.
   Drawn from Natural Earth land GeoJSON; the arrow is generic (never a
@@ -62,8 +64,11 @@ Scene types:
   "source": "TRM LABS"}, ...]}. A vertical line with one dot per event,
   revealed one at a time. About 3 events fit per shot; use "shots" for more.
 - end_card: "headline" (e.g. "CHECK BEFORE YOU SHARE"), "pointer":
-  {"outlet", "headline"} or {"outlet", "image"} (a screenshot of the
-  article's headline and byline; preferred), never a fake poster, and
+  {"outlet", "image", "captured"} (a screenshot of a referenced article
+  page: outlet name, headline, byline; "captured" is the capture date,
+  printed under it when the screenshot has no absolute date). {"outlet", "headline",
+  "no_screenshot": "<why>"} is the last-resort fallback; never a fake poster.
+  Also
   "disclosure" (one line: AI voice, AI illustrations, sources).
 
 Rules enforced (the spec is SKILL.md; where this docstring disagrees, SKILL.md
@@ -572,9 +577,14 @@ def render_diagram(scene, dur):
         return [(frame(len(nodes), False), layer, 0.0),
                 (frame(len(nodes), True), layer, 0.4 * dur)]
     count = int(stage)
-    if reveal:
-        return [(frame(i, False), layer, t) for i, t in
-                zip(range(1, count + 1), node_times(scene, nodes[:count], dur))]
+    # Nodes already on screen from an earlier shot of this diagram stay put;
+    # the reveal continues from there instead of rebuilding from node 1.
+    shown = min(scene["diagram"].get("from", scene.get("_diagram_shown", 0)), count)
+    if reveal and count > max(shown, 1):
+        times = node_times(scene, nodes[:count], dur)
+        start = max(shown, 1)
+        return [(frame(start, False), layer, 0.0)] + \
+               [(frame(i, False), layer, times[i - 1]) for i in range(start + 1, count + 1)]
     return [(frame(count, False), layer, 0.0)]
 
 
@@ -756,7 +766,12 @@ def render_end_card(scene):
         x0 = (W - shot_img.width) // 2
         d.rectangle([x0 - 4, y - 4, x0 + shot_img.width + 3, y + shot_img.height + 3], fill=WHITE)
         im.paste(shot_img, (x0, y))
-        y += shot_img.height + 28
+        y += shot_img.height + 12
+        if p.get("captured"):
+            # Stands in for a relative time ("13 hours ago") cropped out at capture.
+            d.text((x0, y), f"CAPTURED {p['captured']}", font=font(REG, 18), fill=SOURCE_TEXT)
+            y += 26
+        y += 16
         d.text((40, y), f"READ THE FULL STORY — {p['outlet']}", font=font(BOLD, 26), fill=YELLOW)
         y += 40
     elif p:
@@ -947,6 +962,10 @@ def validate(scenes, args):
         if p is not None and not (isinstance(p, dict) and p.get("outlet")
                                   and (p.get("headline") or p.get("image"))):
             errors.append(f"scene {sid}: pointer needs 'outlet' and either 'headline' or 'image'.")
+        elif isinstance(p, dict) and not p.get("image") and not p.get("no_screenshot"):
+            errors.append(f"scene {sid}: end-card pointer needs 'image', a screenshot of a referenced "
+                          "article page. A headline-only pointer needs 'no_screenshot' giving why "
+                          "no referenced article could be captured.")
         if "keep" in s:
             k = s["keep"]
             if not (isinstance(k, list) and len(k) == 4 and all(0 <= v <= 1 for v in k)
@@ -1107,6 +1126,7 @@ def main():
     # Render every shot to an exact-length 30 fps segment. A scene with
     # "shots" is cut into several shots that share its narration.
     video_list, audio_list, render_warnings = [], [], []
+    diagram_shown = {}     # node list -> nodes already on screen, so reveals continue
     for i, (s, start, dur, audio) in enumerate(timeline):
         name = f"scene{i}"
         total_frames = frames_for(dur)
@@ -1124,6 +1144,16 @@ def main():
             if shot_dur > limit + 1 / FPS:
                 render_warnings.append(f"scene {s.get('id')} shot {j + 1}: runs {shot_dur:.2f}s, "
                                        f"over the {limit:.0f}s shot limit; add shots.")
+            if sh.get("diagram"):
+                key = tuple(sh["diagram"]["nodes"])
+                stage = sh["diagram"].get("stage", len(key))
+                count = len(key) if stage == "X" else int(stage)
+                sh["_diagram_shown"] = diagram_shown.get(key, 0)
+                if count < sh["_diagram_shown"]:
+                    render_warnings.append(f"scene {s.get('id')} shot {j + 1}: diagram drops from "
+                                           f"{sh['_diagram_shown']} to {count} nodes; it will "
+                                           "jump backwards.")
+                diagram_shown[key] = count
             video_list.append(render_shot(sh, shot_dur, work, f"{name}_{j}", render_warnings))
             if sh.get("_mode"):
                 s["_mode"] = ", ".join(filter(None, [s.get("_mode"), sh["_mode"]])) \

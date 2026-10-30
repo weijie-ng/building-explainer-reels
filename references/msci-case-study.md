@@ -49,7 +49,7 @@ Times are approximate.
 | 39.3–42.5 | "SADIS!!" / "RI ANCAM STOP EKSPOR GAS" posters, fitted, "~400 POSTS" | real | DISINFORMATION POST — flagged by CNA Verify; CNA VERIFY • 29 OCT 2026 |
 | 42.5–44.2 | Scattered, separate clusters of red dots with no central hub (matching "no single operator"), "~12M VIEWS" | ai | AI-GENERATED ILLUSTRATION |
 | 44.2–46.4 | Headline card: "400 posts, 12 million views", key sentence "Could not establish a single operator." | recreated | CNA VERIFY |
-| 46.4–48.5 | End card: CHECK BEFORE YOU SHARE, CNA Verify pointer card, disclosure line | recreated | "AI voice · AI illustrations (Muse) · Sources: CNA, The Straits Times, CNA Verify" |
+| 46.4–48.5 | End card on the background blue: CHECK BEFORE YOU SHARE, a screenshot of the CNA Verify article page (CNA name, headline, byline, date) as the pointer with "READ THE FULL STORY — CNA VERIFY", disclosure line | recreated card; real article screenshot | "AI voice · AI illustrations (Muse) · Sources: CNA, The Straits Times, CNA Verify" |
 
 Five AI clips were generated with Muse: market chart, chain background, feed, network, and end-card background. None contains words or logos; the market clip shows chart numbers only. Every AI shot is under 3s, and real material carries the key claims.
 
@@ -64,7 +64,7 @@ Five AI clips were generated with Muse: market chart, chain background, feed, ne
 ## Source limitations
 
 - The meeting-claim composite's own text is truncated at its edges in the source (embassy sign, Indonesian headline band). Fitting shows everything the source contains; it cannot restore what the source cut. Say so in delivery notes.
-- No full-page article screenshots were captured. The receipts are article images and thumbnails, and headline wording appears on headline cards.
+- Inside the reel, the receipts are article images and thumbnails, and headline wording appears on headline cards. The one full article screenshot is the end card's pointer: the CNA Verify article page, cropped to the CNA name, headline, byline and date.
 
 ## Defects and the rules that prevent them
 
