@@ -122,6 +122,8 @@ Rules:
 4. **A labelled AI illustration or video (Muse)** of the concept (frozen funds, a paused queue, a laptop), within the AI-material rules.
 5. **A headline card**, the last resort. A headline on plain blue is the weakest shot in the reel; at most 2 per reel, not counting the end card. Before using one, search for steps 1–3 (cited articles, other coverage, the primary source's posts, Wikimedia Commons) and try step 4.
 
+**Every beat goes through this order**, whatever its final visual. Diagrams, the map and the timeline are not a way around it: use the diagram only for the one chain of links, the map once, and the timeline once, just before the end card. Any other beat gets an image from steps 1–5, so the search of every cited article, other coverage, the primary source's posts and Wikimedia Commons happens for each of them.
+
 Steps 1–3 count only when the image is **related to the story**: it shows the people, organisations, products, places, documents or data the beat is about. A generic image (a stock "hacker in a hoodie", an unrelated archive photo, a logo shot reused from another story) does not count; use a Muse AI illustration or video for that beat instead.
 
 **When an image has too much text (fails D5), repair the shot; don't fall back to blue.** Try these in order and stop at the first that passes:
