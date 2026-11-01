@@ -76,20 +76,28 @@ Under 60 seconds by default (about 130–140 words for 55s). If the user asks fo
 
 ### Story shape: a story, not a list of facts
 
-The sections above say what must be in the reel. This says how it plays. Viewers scroll away the moment nothing new is at stake, and a reel where every beat is one more fact (rated 9.2, fixed on 21 October, 25 firewalls, 0 of 5…) plays as a list even when each fact is right. Every rule here keeps every hedge, attribution and source label; if a storytelling change would drop one, don't make it.
+The sections above say what must be in the reel. This says how it plays. Viewers scroll away the moment nothing new is at stake, and a reel where every beat is one more fact (a rating, a date, a count, another count…) plays as a list even when each fact is right. Every rule here keeps every hedge, attribution and source label; if a storytelling change would drop one, don't make it.
 - **One concrete example the viewer can picture, given the longest beat.** One named device, site, account or transfer, and what happened to it, in plain words. It is the shot the viewer remembers; give it the strongest visual.
 - **Escalate, then turn.** Order the beats so the stakes rise toward that example. Context that lowers the stakes (a patch, a reassurance, "most weren't affected") comes after the strongest example, not before it. A claim's own denial or counterpart still stays in its beat (step 5).
-- **Re-hook every 8–10s.** Open a new small question or turn ("But who actually got hit?", "Then a third flaw appeared.") and don't deflate it in the very next line.
+- **Re-hook every 8–10s.** Open a new small question or turn ("But who actually got hit?", "So who was behind the posts?", "Then the company changed its story.") and don't deflate it in the very next line.
 - **Bridge every contrast: say why both are true.** Real stories often hold two true facts that point opposite ways: a flaw that is widely exploited but failed in tests, a company fined that saw its shares rise, a claim shared by thousands of accounts that traces back to a handful, an official denial next to documents that seem to confirm it. Put two such beats side by side with no explanation and the viewer hears a contradiction. They can't tell which fact to believe, so they trust neither, and the reel loses them right at its most interesting point. A tension handled well is a turn, which is what "Re-hook" asks for. So the line where the story turns gives the reason both are true, before or together with the second fact, in plain words, and signals the turn ("But", "Unlike", "Yet"). That shot's headline names the difference, so the two headlines don't contradict each other with the sound off. Where a visual can carry the contrast (a split, a before/after, a wipe into the turn), use it. The reason must come from facts.md at the source's strength. If no source says why, say so plainly ("the company hasn't explained") rather than supply a mechanism. A plausible explanation that nobody published is invention, however good it sounds. (Worked example: PHP2Shell v2 in `references/php2shell-case-study.md`.)
-- **Plain words for terms of art.** Gloss each technical term on first use, or replace it with what it means at the source's strength: "rated 9.2" becomes "rated 9.2 out of 10 for severity"; "rooted" becomes "gained root, full control of the device". A viewer who needs a glossary has already left.
+- **Plain words for terms of art.** Gloss each technical term on first use, or replace it with what it means at the source's strength: "rated 9.2" becomes "rated 9.2 out of 10 for severity"; "index provider MSCI" becomes "MSCI, the company whose indexes steer where big funds invest"; "rooted" becomes "gained full control of the device". A viewer who needs a glossary has already left.
 - **Fewer facts, each landed.** About five or six distinct figures or claims in 55s. Each figure that stays gets its own visual moment (a stat shot, a document crop on the line); a figure that no shot shows is a candidate to cut.
-- **Say who it affects.** One clause of plain stakes for the viewer ("the boxes guarding company networks"), never a perpetrator the sources haven't named.
+- **Say who it affects.** One clause of plain stakes for the viewer ("the boxes guarding company networks", "the market that holds local pension savings"), never a perpetrator the sources haven't named.
 
-  Before (PHP2Shell v1, each beat one more fact):
+  Two before/after pairs from different kinds of story. Each keeps the same facts and attributions; only the order, the turns and the glosses change. They show the technique, not wording to reuse.
+
+  A security flaw (PHP2Shell v1). Before, each beat one more fact:
   > PHP2Shell rated 9.2. / Fixes landed on 21 October for PHP 8.2 to 8.5. / Still, the clearest break-in came at firewalls. / Dream says 25 Palo Alto firewalls were rooted, then chained to full control.
 
-  After (same facts and attributions, escalating, glossed):
+  After, escalating to the concrete example, with the reassurance after it:
   > It's rated 9.2 out of 10 for severity. / But who actually got hit? The clearest break-in wasn't a website. It was firewalls, the boxes guarding company networks. / Security firm Dream says attackers gained full control of 25 Palo Alto firewalls. / PHP had shipped fixes on 21 October.
+
+  A disinformation story (MSCI). Before, claim and counter-claims in a row:
+  > Lutfi alleged Singapore pressured MSCI. / GIC and Temasek denied it. / CNA Verify found about 400 posts. / They had nearly 12 million views.
+
+  After, with the stakes stated, the unknown names glossed and the scale set up as a question:
+  > Indonesia's market fell, and Singapore got the blame online. / Muhammad Lutfi claimed, without evidence, that Singapore's state investors GIC and Temasek leaned on MSCI, the company whose indexes steer where big funds invest. Both deny it. / So who was spreading it? CNA Verify found close to 400 posts and nearly 12 million views, but couldn't tie them to a single operator.
 
 ## Tone and sourcing
 
@@ -128,21 +136,23 @@ Borrow the thesis-first hook, the one chain, short anecdotes and the funnel. Do 
 - If an image's text is still unreadable when shown whole, report it as a trade-off; do not hide it.
 - Every shot shows a representative visual (a receipt, a real clip, a headline card, the diagram, the map or a labelled AI illustration). No shot shows only a headline on plain colour.
 - **Headlines.** A viewer who reads only the headline, with the sound off and a glance, should know who did what. So each headline is a self-explaining line: a subject and a verb or figure, about 3–8 words (roughly 40 characters). It takes one line at 52px or two at 44/40px; the build sizes it so the captions stay at y=300, and rejects one that needs a third line. Write it this way:
-  - **Name the subject, with who they are the first time.** A name the viewer hasn't heard is just a word ("DREAM"). Put the identifier in the headline ("SECURITY FIRM DREAM…") or, when it won't fit, in the source label ("DREAM, SECURITY RESEARCH FIRM • 26 OCT 2026"), and have the narration introduce it.
-  - **No telegraphese.** Dropping words until the line turns ambiguous ("PHP POWERS WEB": powers what, which web?) is the failure; keep the articles and objects that carry the meaning.
-  - **No unexplained jargon.** "ROOTED", "RCE", "KEV", "CVSS" mean nothing to most viewers; say what they mean.
-  - **A score says what it measures.** "9.2 OUT OF 10" alone reads like a good review. Name the measure so the direction is obvious ("SEVERITY", "RISK", "DROP"), and use the source's own band word when it gives one ("CRITICAL").
+  - **Name the subject, with who they are the first time.** A name the viewer hasn't heard is just a word ("DREAM", "GIC"). Put the identifier in the headline ("SECURITY FIRM DREAM…", "SINGAPORE STATE FUND GIC…") or, when it won't fit, in the source label ("DREAM, SECURITY RESEARCH FIRM • 26 OCT 2026"), and have the narration introduce it.
+  - **No telegraphese.** Dropping words until the line turns ambiguous ("PHP POWERS WEB": powers what, which web? "SAME TEMPLATES": whose, used for what?) is the failure; keep the articles and objects that carry the meaning.
+  - **No unexplained jargon.** "ROOTED", "CVSS", "SHORT SELLER", "INDEX REWEIGHT", "BOT NETWORK" mean nothing to many viewers; say what they mean.
+  - **A score says what it measures.** "9.2 OUT OF 10" alone reads like a good review, and "DOWN 40%" doesn't say what fell. Name the measure so the direction is obvious ("SEVERITY", "RISK", "DROP"), and use the source's own band word when it gives one ("CRITICAL").
   - **The takeaway, not a caption repeat.** The caption already says the sentence; the headline states its point. It carries the claim's status at the source's strength ("DREAM SAYS…", "ALLEGED…"), because there are no status tags.
   - **Keep it the same line count across a super change**, so the image under it doesn't jump.
 
-  | v1 headline | Problem | Better |
+  Weak headlines from two earlier reels, and what fixes them:
+
+  | Weak headline | Problem | Better |
   |---|---|---|
-  | PHP POWERS WEB | ambiguous telegraphese | PHP RUNS MUCH OF THE WEB |
   | RATED 9.2 | what is rated, out of what, and is high good or bad? | FLAW SEVERITY: 9.2 OUT OF 10 |
-  | FIXES OUT 21 OCT | whose fixes? | PHP PATCHED IT ON 21 OCT |
-  | 25 ROOTED | who is Dream, what is rooted? | DREAM: 25 FIREWALLS TAKEN OVER (label: "DREAM, SECURITY FIRM • 26 OCT") |
-  | MOST DID NOT FALL | most what? And after the firewall line it reads as a contradiction | TENABLE: SAME ATTACK FAILED ON 5 ORDINARY SITES |
-  | UNUSUAL SETUP ONLY | of what? | THIRD FLAW NEEDS A RARE SETUP |
+  | 25 ROOTED | who did it, and what is rooted? | DREAM: 25 FIREWALLS TAKEN OVER (label: "DREAM, SECURITY FIRM • 26 OCT") |
+  | MOST DID NOT FALL | most what? After the line before, it reads as a contradiction | TENABLE: SAME ATTACK FAILED ON 5 ORDINARY SITES |
+  | SECOND CLAIM | a claim of what, by whom? | POSTS CLAIM A SECRET AMBASSADOR MEETING |
+  | SAME TEMPLATES | whose, used for what? | DIFFERENT ACCOUNTS POST THE SAME VIDEO |
+  | DOMESTIC SUPPLY | what about it? | INDONESIA CUT GAS EXPORTS FOR DOMESTIC SUPPLY |
 
   A paragraph never repeats the caption.
 
