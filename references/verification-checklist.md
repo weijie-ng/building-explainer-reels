@@ -8,6 +8,7 @@ Every item is PASS or FAIL with evidence (a measured value, a timestamp, or a fr
 - C. Editorial items
 - D. Visual items
 - E. Report format
+- F. Re-verification scope (rounds 2 and 3)
 
 ## A. Measurement commands
 
@@ -157,3 +158,31 @@ MISSED OPPORTUNITIES (D12, up to five): ...
 ```
 
 VERDICT is PASS only if every item is PASS or an accepted trade-off that the spec explicitly allows (D2 incidental readability). There is no "PASS with note" for a rule breach: if a note describes something a rule forbids, the item is a FAIL. Apply each rule as written; do not reinterpret it to pass (for example, counting several shots of one photo as one "visual run").
+
+## F. Re-verification scope (rounds 2 and 3)
+
+Round 1 runs every item. After a FAIL round, the builder fixes, rebuilds and starts a new verifier on **only the items the fixes could have changed**. An item whose inputs did not change cannot change its result, so running it again costs time and finds nothing new. The scope comes from what changed in the files, not from what the builder thinks it fixed. The builder is the party least able to judge where a fix spilled over.
+
+**1. Diff.** Before each round, the builder saves the manifest and facts.md it hands over (for example `verify/round1/`). For the next round, list every difference between the saved copy and the new one: which beats and shots changed, and which fields (narration, headline, asset, keep box, move, order, timing, asset-log row, facts row). Add any asset file replaced under the same name, and any change to the build scripts or style settings.
+
+**2. Scope.** Start with the "Every round" row, then add the row for each kind of change found. "The shot" means each changed shot and the shots on either side of its cuts.
+
+| What changed | Re-run |
+|--------------|--------|
+| Every round (each rebuild re-renders the whole file) | B1, B2, B3, B4, B6, B7, B9; B8's measured profile; D12's measured part; and every item that FAILed in any earlier round |
+| Narration text of a beat | C2, C5, C12, C13, C16; B5, B10, D6; D3 for the beat's shots; D4 pace and variety; D12 in full; C14 if it is a hook beat; C15 if it is the first or last beat |
+| Headline, source label, yellow words, disinformation tag | C1, C3, C6, C17; D1, D3, D5, D9 for the shot; C9 and D7 if it is a headline card |
+| Image, clip or AI asset swapped or added; asset-log row | C3, C10; C7 if AI; C8 if a real clip; D2, D3, D5, D11 and B8's strips for the shot; D4 in full; D12 in full |
+| Keep box, crop, move, wipe, `clip_start`, `clip_mask` | B8 strips for the shot; D1, D2, D3 for the shot |
+| Shots added, removed, reordered or retimed | B5; B8 jump-back check; C2, C16; D4 pace and variety; D12 in full; C14 and C15 if the first or last beat moved |
+| facts.md | C2, C3, C4, C5, C6, C10, C11, C12; D4 asset log |
+| Diagram, map, timeline or stat | C4, C11; D4 graphics; D8 |
+| End card or summary card | B5, C15, D10 |
+| Build scripts, caption style, colours or fonts; or changes touching more than half the beats | The full checklist |
+
+When unsure whether a change touches an item, include the item. A missed item costs a broken reel, and an extra one costs a few minutes.
+
+**3. Hand-over.** Give the new verifier the usual inputs, plus the list of item IDs to run and the shot IDs that per-shot items cover. Do not tell it what was fixed, why, or what the earlier reports said. It runs those items in full, using the same commands and standards as round 1, and reports only those.
+
+**4. Combined report.** The builder joins the new report with the latest result of every other item, marking each carried result "carried from round N". The builder copies results as the verifiers reported them and does not change any of them. VERDICT is PASS only if every item in the combined table is PASS. Deliver the combined table, with each verifier's own report attached.
+

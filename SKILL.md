@@ -444,13 +444,14 @@ The builder never certifies its own reel. After every build, hand verification t
 - the assets folder (every image and clip the manifest uses);
 - the build workdir (for the narration files B4 measures and the `subs.ass` caption file B9 measures);
 - `references/verification-checklist.md`;
-- a writable folder for its frames and report.
+- a writable folder for its frames and report;
+- from round 2 on: the item IDs and shot IDs in this round's scope (checklist section F), and nothing about what was fixed.
 
 Do not give it your own assessment, the known issues, or what you expect it to find; a primed verifier tends to confirm what it is told.
 
 **The verifier must:**
 1. Work from the files it was given; it does not download assets or capture screenshots, and needs no live browser. It may use web search and page-text fetches to check for related images (D4). Run every measurement in the checklist itself on the rendered file (not the planned timeline), extract the contact sheets and per-shot strips, and look at them.
-2. Mark each checklist item PASS or FAIL, with evidence: a measured value, a timestamp, or a frame path. "Looks fine" is not evidence.
+2. Mark each checklist item in its scope (every item in round 1) PASS or FAIL, with evidence: a measured value, a timestamp, or a frame path. "Looks fine" is not evidence.
 3. Not edit, re-render or fix anything; it only reports.
 4. Return the report in this format:
 
@@ -464,6 +465,7 @@ ACCEPTED TRADE-OFFS (if any): ...
 
 **Gate rules.**
 - Any FAIL blocks delivery. The builder fixes the failures, rebuilds, and starts a **new** fresh verifier. Fix a D5 (too much text) FAIL with the text repair steps in "Asset gathering", not by swapping in a headline card. Do not reuse the previous one, and do not tell the new one what was fixed.
+- Round 1 runs the whole checklist. Rounds 2 and 3 run only the items the fixes could have changed. Work out the scope with checklist section F: diff the manifest and facts.md against the copies saved for the last round, then look up each kind of change in its impact table. Every round still re-measures the whole rendered file and re-runs every item that has failed before. Any change to the build scripts or the global style, or a change touching more than half the beats, needs the full checklist. The verdict comes from the combined report: the new results plus every other item carried from its latest round.
 - After 3 failed rounds, stop. Deliver the latest build to the user clearly marked "not passed", with the verifier's open FAIL items. Never present it as passed.
 - No "PASS with note" for a rule breach. A note may record something the spec explicitly allows (a trade-off it names); anything that breaks a rule is a FAIL, and the verifier applies rules as written instead of reinterpreting them (PHP2Shell v1 passed one photo in four shots as "one visual run").
 - The builder may not overrule a FAIL. If the builder believes a FAIL is wrong (for example, an intentional still hold flagged as a freeze), say so to the user with the evidence, and let the user decide.
