@@ -2,7 +2,8 @@
 
 Every checklist item can pass while the reel still reads as a slideshow: a
 run of still images, each small on blurred fill under a headline, the same
-picture coming back, nothing on screen acting out the line. This report measures those patterns from the plan, so the builder
+picture coming back, nothing on screen acting out the line. This report
+measures those patterns from the plan, so the builder
 sees them at the dry run, before any asset is final, and the verifier can
 check them against the shot list (D12).
 
