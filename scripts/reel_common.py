@@ -47,6 +47,14 @@ CAPTION_SHADOW = 2           # soft drop shadow
 TAIL = 0.15                  # pause after each scene's narration (s)
 CREEP_SCALE = 0.02           # slow creep: at most 102% scale over a shot
 CREEP_UP_PX = 5              # drift-up creep speed (px per second)
+# Summary card and end card (SKILL.md, "End card"): the finished card must
+# stay on screen long enough to read, or to screenshot. PHP2Shell v2 brought
+# five panels in over 1.75s of a 2.2s shot, so the whole card showed for 0.4s.
+SUMMARY_STAGGER = 0.35       # s between panels, at most...
+SUMMARY_BUILD_SHARE = 0.4    # ...and every panel is in by this share of the shot
+SUMMARY_HOLD_MIN = 1.5       # the finished card holds at least this long (s)...
+SUMMARY_HOLD_PER_PANEL = 0.4 # ...or this per panel, whichever is longer
+END_CARD_HOLD_MIN = 1.5      # the end card runs at least this long (s)
 GRAIN_ALPHA = 0.035          # faint grain on flat graphics, as in the reference
 GRAIN_FRAMES = 4             # grain frames cycled (enough to read as live)
 

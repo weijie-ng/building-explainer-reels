@@ -41,7 +41,8 @@ without rebuilding the rest:
 Modules: reel_common (constants, helpers), reel_manifest (loading,
 validation), reel_continuity (what carries on across a cut), reel_render (shot renderers, stat, wipe), reel_pace (slideshow check), reel_subs (phrasing, Whisper
 timing, caption ASS), reel_audio (narration, music, loudness), check_sync (sync check),
-check_ai_animation (how long an AI animation of a graphic stays faithful).
+check_ai_animation (how long an AI animation of a graphic stays faithful),
+check_card_hold (how long the finished summary card and end card stay on screen).
 
 Manifest (see examples/sample-manifest.json):
 {
@@ -228,7 +229,7 @@ from reel_subs import (WHISPER_MODEL, whisper_words, match_words, apply_nudges, 
 from reel_manifest import (load_manifest, validate, check_tools, expand_shots,  # noqa: E402
                            hook_indices)
 from reel_render import (render_shot, source_label, diagram_plate, header_bottom,  # noqa: E402
-                         apply_wipe, stat_time)
+                         apply_wipe, stat_time, summary_hold, summary_rows)
 from reel_pace import pace_report, print_table, shot_kind, coverage  # noqa: E402
 from reel_continuity import Continuity  # noqa: E402
 import reel_audio  # noqa: E402
@@ -405,6 +406,7 @@ class Build:
         on the previous shot's visual (same clip, still, card, timeline or
         diagram) carries its animation on too: see reel_continuity."""
         plan, warnings, cont = [], [], Continuity()
+        hold_errors = []        # summary/end card on screen too briefly to read
         self.cues = []          # sound accents: (name, reel seconds, beat index)
         hook = set(hook_indices(self.scenes))
         self.caption_tops, self.no_caption = {}, []
@@ -468,11 +470,26 @@ class Build:
                 if shot_dur > limit + 1 / FPS:
                     warnings.append(f"{where}: runs {shot_dur:.2f}s, over the {limit:.0f}s shot limit; "
                                     "add shots.")
+                if sh.get("summary"):
+                    held, need = summary_hold(sh, shot_dur)
+                    if held + 1 / FPS < need:
+                        hold_errors.append(
+                            f"{where}: the finished summary card is on screen {held:.2f}s; it "
+                            f"needs {need:.1f}s ({SUMMARY_HOLD_PER_PANEL}s per panel, at least "
+                            f"{SUMMARY_HOLD_MIN}s). Raise this shot's weight (take it from the end "
+                            f"card, which only needs {END_CARD_HOLD_MIN}s), cut panels, or add "
+                            "narration.")
+                if sh.get("end_card") and shot_dur + 1 / FPS < END_CARD_HOLD_MIN:
+                    hold_errors.append(f"{where}: the end card runs {shot_dur:.2f}s; it needs "
+                                       f"{END_CARD_HOLD_MIN}s. Raise its weight.")
                 t_shot = b["start"] + bounds[j] / FPS
                 if sh.get("stat"):
                     self.cues.append(("hit", t_shot + stat_time(sh, shot_dur), b["i"]))
                 plan.append((b["i"], j, sh, shot_dur, f"scene{b['i']}_{j}"))
         cont.finish()
+        if hold_errors:
+            sys.exit("Card too brief to read (SKILL.md, \"End card\"):\n  "
+                     + "\n  ".join(hold_errors))
         self.pace_rows, pace_warnings = pace_report(plan)
         return plan, warnings + pace_warnings
 
@@ -549,7 +566,9 @@ class Build:
                          "visual": visual, "move": sh.get("move"), "material": sh.get("material"),
                          "kind": shot_kind(sh), "wipe": sh.get("wipe") or None,
                          "coverage": (lambda c: None if c is None else round(c, 2))(coverage(sh)),
-                         "label": source_label(sh), "headline": sh.get("headline", "")})
+                         "label": source_label(sh), "headline": sh.get("headline", ""),
+                         "panels": (sum(len(r) for r in summary_rows(sh["summary"].get("panels", [])))
+                                    if sh.get("summary") else None)})
             t += n
         with open(path, "w", encoding="utf-8") as f:
             json.dump({"frames": t, "seconds": round(t / FPS, 3), "shots": rows}, f, indent=1)
@@ -855,6 +874,10 @@ def main():
               f"label={' | '.join(source_label(sh) for sh in expand_shots(s))!r}")
     if stage == "all":
         ok = check_sync.report(out, ass) and ok
+    hold = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                        "check_card_hold.py"), out,
+                           "--shots", os.path.join(b.work, "shot_list.json")])
+    ok = hold.returncode == 0 and ok
     print("NEXT: run the independent verification gate (SKILL.md) before delivery.")
     return 0 if ok else 1
 

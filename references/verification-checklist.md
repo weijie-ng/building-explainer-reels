@@ -39,6 +39,8 @@ ffmpeg -i R -vf "scale=180:-1,format=gray,tblend=all_mode=difference,signalstats
 ffmpeg -i R -vf "fps=2,scale=180:-1,tile=8x2" OUT/sheet_%02d.png
 # Viewer sheet: the whole reel at 1 fps on one image (D12)
 ffmpeg -i R -vf "fps=1,scale=160:-1,tile=8x8" -frames:v 1 OUT/viewer_sheet.png
+# Summary card and end card hold: how long each finished card stays on screen (B5)
+python3 scripts/check_card_hold.py R --shots W/shot_list.json --json OUT/card_hold.json
 # Pace from the shot list (W = build workdir): each shot's kind and still coverage (D12)
 python3 -c "import json,sys; d=json.load(open(sys.argv[1])); [print(r['start'],r['end'],r.get('kind'),r.get('coverage'),r.get('wipe'),r['visual'],r['headline']) for r in d['shots']]" W/shot_list.json
 # Per-shot strip at 8 fps (repeat for each shot; S = shot start, D = duration)
@@ -55,7 +57,7 @@ Inspect the images themselves; do not infer them from the commands' output.
 - [ ] **B2 Specs**: 720×1280, h264, AAC 48 kHz stereo.
 - [ ] **B3 Loudness**: integrated loudness between −15.5 and −13.5 LUFS (target −14).
 - [ ] **B4 Silence and word cuts**: no gap over 0.3s except the final 0.5s. No agent can hear the audio, so measure word cuts: in the build workdir, every trimmed narration file `sceneN.wav` must start and end in silence, with the first and last 20ms below −45 dBFS RMS (commands in A). FAIL with the file and level if either edge is louder; speech at the edge means a word was clipped. Report that a human listen-through is still needed, because a word dropped inside a line by TTS cannot be measured this way.
-- [ ] **B5 Shot length**: no shot over 4s except headline cards and timeline shots (≤5s), and the end card and summary card, which run for the loop-back narration (FAIL if their text can't be read in that time); shots mostly 1–3s. A super change (new headline, same visual) starts a new shot.
+- [ ] **B5 Shot length**: no shot over 4s except headline cards and timeline shots (≤5s), and the end card and summary card, which run for the loop-back narration (FAIL if their text can't be read in that time); shots mostly 1–3s. Run `scripts/check_card_hold.py` (command in A) and FAIL any summary card whose finished card (every panel in) stays on screen less than 0.4s per panel or 1.5s, whichever is longer, or an end card under 1.5s, quoting the measured hold. A super change (new headline, same visual) starts a new shot.
 - [ ] **B6 Holds**: list every freezedetect hold over 1s with its timestamp. FAIL if a frame is frozen across a cut, or if a shot never changes at all (it should at least creep).
 - [ ] **B7 Clean cuts**: on the 2 fps sheets and around each cut, no frame from the previous shot leaks across a cut, and no frame mixes two layouts.
 - [ ] **B8 Motion profile**: report the median frame difference and still %. FAIL if still % is over 50 (the reference reel is 12%). Then check the 8 fps per-shot strips:

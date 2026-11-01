@@ -696,7 +696,8 @@ def render_summary(scene, dur, warnings):
     """Summary card: the reel's key figures and distinctions as one
     infographic on the background blue, readable at a glance and in a
     screenshot: large values, equal panels, fixed margins, no clipped text.
-    Panels appear one after another (0.35s apart), then the card holds.
+    Panels appear one after another (SUMMARY_STAGGER apart, tighter in a short
+    shot so all are in by SUMMARY_BUILD_SHARE of it), then the card holds.
 
     summary: {"title": "THE KEY NUMBERS", "panels": [...], "sources": "..."}
     A panel is a figure {"value": "$6.3B", "label": "...", "source": "..."}
@@ -785,13 +786,14 @@ def render_summary(scene, dur, warnings):
                 dd.text((hx0 + pad, yy), ln, font=body[0], fill=WHITE)
                 yy += body[2]
 
+    step = summary_stagger(scene, dur)
     scratch = ImageDraw.Draw(Image.new("RGB", (W, H)))
     for box in boxes:
         panel(scratch, box, fixed=False)
     stages = [(base.copy(), None, 0.0)]
     for k, box in enumerate(boxes):
         panel(d, box, fixed=True)
-        stages.append((base.copy(), None, 0.35 * (k + 1)))
+        stages.append((base.copy(), None, step * (k + 1)))
     stages_all = len(boxes)
     yy = bottom + 16
     for ln in foot_lines:
@@ -802,8 +804,26 @@ def render_summary(scene, dur, warnings):
     # previous shot ended with already shown.
     shown = min(int(scene.get("_summary_shown", 0)), stages_all)
     if shown:
-        return [(stages[shown][0], None, 0.0)] +                [(stages[k][0], None, 0.35 * (k - shown)) for k in range(shown + 1, stages_all + 1)]
+        return [(stages[shown][0], None, 0.0)] +                [(stages[k][0], None, step * (k - shown)) for k in range(shown + 1, stages_all + 1)]
     return stages
+
+
+def summary_stagger(scene, dur):
+    """Seconds between panels: SUMMARY_STAGGER, tightened so the last panel
+    is in by SUMMARY_BUILD_SHARE of the shot and the finished card holds."""
+    n = sum(len(r) for r in summary_rows(scene["summary"].get("panels", [])))
+    todo = n - min(int(scene.get("_summary_shown", 0)), n)
+    if todo <= 0:
+        return SUMMARY_STAGGER
+    return min(SUMMARY_STAGGER, SUMMARY_BUILD_SHARE * dur / todo)
+
+
+def summary_hold(scene, dur):
+    """(seconds the finished card is on screen, seconds it needs)."""
+    n = sum(len(r) for r in summary_rows(scene["summary"].get("panels", [])))
+    todo = n - min(int(scene.get("_summary_shown", 0)), n)
+    held = frames_for(dur) / FPS - todo * summary_stagger(scene, dur)
+    return held, max(SUMMARY_HOLD_MIN, SUMMARY_HOLD_PER_PANEL * n)
 
 
 def summary_panels_shown(scene, dur):
@@ -811,7 +831,7 @@ def summary_panels_shown(scene, dur):
     n = sum(len(r) for r in summary_rows(scene["summary"].get("panels", [])))
     shown = min(int(scene.get("_summary_shown", 0)), n)
     last = (frames_for(dur) - 1) / FPS
-    return min(n, shown + int(last / 0.35 + 1e-9))
+    return min(n, shown + int(last / summary_stagger(scene, dur) + 1e-9))
 
 
 STAT_COUNT_SECONDS = 0.6     # a numeric stat counts up over this, ease-out
