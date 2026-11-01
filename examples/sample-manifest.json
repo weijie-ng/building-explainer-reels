@@ -13,7 +13,7 @@
     },
     {
       "id": "hook-real",
-      "narration": "A made-up meeting.",
+      "narration": "A made-up meeting. So what really happened?",
       "material": "real",
       "headline": "MARKET CRASH",
       "image": "idx.jpg",
@@ -23,13 +23,13 @@
         0.1,
         0.75,
         0.7
-      ]
+      ],
+      "move": "push"
     },
     {
       "id": "clip",
       "narration": "On 19 October, Muhammad Lutfi alleged, without evidence, that Singapore pulled the strings.",
       "material": "real",
-      "label": "ALLEGATION",
       "headline": "THE CLAIM",
       "yellow_words": [
         "CLAIM"
@@ -56,7 +56,6 @@
       "id": "diagram",
       "narration": "Through GIC and Temasek, pressured index provider MSCI over Indonesia.",
       "material": "diagram",
-      "label": "ALLEGATION",
       "headline": "THE CHAIN",
       "yellow_words": [
         "CHAIN"
@@ -76,7 +75,6 @@
       "id": "meeting",
       "narration": "Then came a second claim, that Dino Patti Djalal and Saiful Mujani met Singapore's ambassador.",
       "material": "real",
-      "label": "ALLEGED MEETING",
       "disinformation": "CNA Verify",
       "headline": "MET THE AMBASSADOR",
       "yellow_words": [
@@ -95,8 +93,6 @@
       "id": "denial-card",
       "narration": "Dino, Saiful, and the Singapore embassy said no such visit took place.",
       "material": "recreated",
-      "label": "DENIED",
-      "label_color": "green",
       "card": {
         "outlet": "THE STRAITS TIMES",
         "headline": "Singapore embassy rejects meeting claim",
@@ -111,8 +107,6 @@
       "id": "denial-x",
       "narration": "The chain was denied.",
       "material": "diagram",
-      "label": "DENIED",
-      "label_color": "green",
       "headline": "CHAIN DENIED",
       "yellow_words": [
         "DENIED"
@@ -130,44 +124,24 @@
     {
       "id": "gas-map",
       "narration": "Indonesia did reduce gas exports on 24 October, for domestic supply reasons.",
-      "material": "diagram",
+      "material": "ai",
       "headline": "GAS FLOW",
       "yellow_words": [
         "GAS"
       ],
-      "map": {
-        "land": "ne_10m_land.geojson",
-        "bbox": [
-          98.0,
-          -6.5,
-          109.0,
-          6.5
-        ],
-        "markers": [
-          {
-            "name": "SINGAPORE",
-            "lon": 103.82,
-            "lat": 1.35
-          }
-        ],
-        "arrow": [
-          [
-            103.0,
-            -1.5
-          ],
-          [
-            103.75,
-            1.2
-          ]
-        ]
-      }
+      "schematic": true,
+      "clip": "ai_gas_map.mp4",
+      "keep": [
+        0.2,
+        0.35,
+        0.8,
+        0.75
+      ]
     },
     {
       "id": "distinction",
       "narration": "The gas cut is real. Tying it to MSCI interference is false.",
       "material": "real",
-      "label": "GAS CUT = REAL",
-      "label_color": "green",
       "headline": "TYING IT TO MSCI = FALSE",
       "yellow_words": [
         "FALSE"
@@ -185,8 +159,6 @@
       "id": "shots-example",
       "narration": "Two outlets reported the denial the same morning.",
       "material": "real",
-      "label": "DENIED",
-      "label_color": "green",
       "shots": [
         {
           "image": "photo_a.jpg",
@@ -244,18 +216,67 @@
     },
     {
       "id": "end",
-      "narration": "Check before you share. See the full story.",
+      "narration": "Check before you share. So, what really happened?",
       "material": "recreated",
-      "end_card": true,
-      "headline": "CHECK BEFORE YOU SHARE",
-      "yellow_words": [
-        "CHECK"
-      ],
-      "pointer": {
-        "outlet": "CNA VERIFY",
-        "image": "cna_verify_headline.png"
-      },
-      "disclosure": "AI voice · AI illustrations (Muse) · Sources: CNA, The Straits Times, CNA Verify"
+      "disclosure": "AI voice · AI illustrations (Muse) · Sources: CNA, The Straits Times, CNA Verify",
+      "shots": [
+        {
+          "summary": {
+            "title": "WHAT'S REAL",
+            "yellow_words": [
+              "REAL"
+            ],
+            "panels": [
+              {
+                "value": "~400",
+                "label": "posts spreading the claims",
+                "source": "CNA VERIFY, 29 OCT"
+              },
+              {
+                "value": "12M",
+                "label": "views of those posts",
+                "source": "CNA VERIFY, 29 OCT"
+              },
+              {
+                "value": "<2%",
+                "label": "of Singapore's daily gas demand cut",
+                "source": "EMA VIA CNA, 26 OCT"
+              },
+              {
+                "value": "0",
+                "label": "operators identified behind the posts",
+                "source": "CNA VERIFY, 29 OCT"
+              },
+              {
+                "pair": [
+                  {
+                    "title": "REAL",
+                    "text": "Indonesia cut gas exports for domestic supply"
+                  },
+                  {
+                    "title": "FALSE",
+                    "text": "That Singapore or MSCI was behind it"
+                  }
+                ]
+              }
+            ],
+            "sources": "Sources: CNA, The Straits Times, CNA Verify"
+          },
+          "weight": 3
+        },
+        {
+          "end_card": true,
+          "headline": "CHECK BEFORE YOU SHARE",
+          "yellow_words": [
+            "CHECK"
+          ],
+          "pointer": {
+            "outlet": "CNA VERIFY",
+            "image": "cna_verify_headline.png"
+          },
+          "weight": 2
+        }
+      ]
     }
   ]
 }
