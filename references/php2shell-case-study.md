@@ -42,3 +42,10 @@ Measured: still images held about 82% of the non-end time; video clips 0; built 
 | Tenable 0 of 5 | A `stat` "0 of 5" popping in, then a Muse video of a key failing in a lock ("tuned to each target"). |
 | Third flaw | A wipe at the turn, then a crop of PHP's advisory sentence. |
 | End | "So what got hacked? The clearest break-ins hit firewalls, and the third flaw is still open." (At the sources' strength: Tenable's five-site test doesn't show that websites in general were spared.) Then the end card. |
+
+## v2: a contrast with no bridge
+
+v2 fixed the slideshow problems, but the user's review flagged a new one. The reel went straight from "25 Palo Alto firewalls taken over" to "Tenable tested 5 vulnerable sites online, and none was hacked". With nothing explaining the switch, the viewer can't tell whether the flaw is dangerous or broken, and the second fact seems to cancel the first. Both facts were sourced and in the right order. What was missing was the reason both were true, said at the turn. Now there's "Bridge every contrast" in SKILL.md's Story shape, a tensions table in facts.md, and a C16 and C17 FAIL for an unbridged contrast.
+
+The review offered a reason: appliances run identical firmware, so memory targets are predictable, while web servers' heap layouts vary. That goes in the reel only if Dream's or Tenable's write-up says so. Otherwise the bridge says only what the sources do say about why the attack failed, or that no source gives a reason.
+
