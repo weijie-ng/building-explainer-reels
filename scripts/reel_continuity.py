@@ -35,7 +35,7 @@ from reel_render import (still_layout, card_times, card_lit_end, timeline_layout
 
 def kind_of(sh):
     """The renderer a shot goes to (same order as render_shot)."""
-    for k in ("clip", "card", "diagram", "timeline", "summary", "end_card", "image"):
+    for k in ("clip", "card", "stat", "diagram", "timeline", "summary", "end_card", "image"):
         if sh.get(k):
             return "still" if k == "image" else k
     return "plain"

@@ -16,6 +16,11 @@ def source_label(scene):
         if (scene.get("diagram") or {}).get("motion_clip"):
             label += " · AI MOTION"
         return label
+    if scene.get("stat"):
+        label = scene["stat"].get("source", "")
+        if scene["stat"].get("motion_clip"):
+            label += " · AI MOTION"
+        return label
     if mat == "recreated":
         return ""   # cards show their outlet on the card itself
     return scene.get("image_source", "")
@@ -33,13 +38,17 @@ def draw_tag(d, y, text, color):
     return y + lh * len(lines) + 14 + 14
 
 
-def draw_headline(d, y, text, yellow_words=None, size=52):
+def draw_headline(d, y, text, yellow_words=None, size=None):
     """Wrapped at 640px; single-word yellow highlights; black stroke so it
-    stays readable over busy photos."""
+    stays readable over busy photos. Without an explicit size, a headline
+    that needs two lines is set smaller (HEADLINE_SIZES_2) so the captions
+    keep their place at y=300."""
+    if size is None:
+        size, lines = headline_lines(text)
+    else:
+        lines = [ln for part in text.split("\n")
+                 for ln in wrap(d, part, font(BOLD, size), HEADLINE_WRAP)]
     f = font(BOLD, size)
-    lines = []
-    for part in text.split("\n"):
-        lines.extend(wrap(d, part, f, HEADLINE_WRAP))
     def norm(w):
         return w.strip(".,!?:;\"'()…").upper()
     yellow = {norm(w) for w in yellow_words} if yellow_words else None
@@ -169,7 +178,7 @@ def still_layout(scene, size, warnings):
     are laid out identically); render_still draws from it."""
     layer, text_bottom = text_layer(scene)
     band_top = max(text_bottom + 16, content_top(scene))
-    hook_fill = scene.get("_hook") and scene.get("full_bleed") is not False
+    hook_fill = bool(scene.get("_hook"))      # validation rejects "full_bleed": false here
     if hook_fill:
         # Hook stills fill the whole frame, centred on the keep box: the
         # first second has to read as footage, not a picture on a card.
@@ -190,8 +199,9 @@ def still_layout(scene, size, warnings):
         kx1, ky1 = x + s * k[2] * size[0], y + s * k[3] * size[1]
         if kx0 < 0 or ky0 < 0 or kx1 > W or ky1 > H:
             warnings.append(f"scene {scene.get('id')}: hook still fills the frame and crops its "
-                            "keep box; use a clip or a photo whose subject fits 9:16, or set "
-                            "\"full_bleed\": false to show it whole.")
+                            "keep box. Tighten the keep box to the one subject the hook needs "
+                            "(a wide photo keeps a 9:16 slice of it), pick a taller photo, or "
+                            "use a clip; the hook never shows a picture on blurred fill.")
     return layer, band_top, keep, s, x, y, mode
 
 
@@ -317,7 +327,7 @@ def render_card(scene, dur):
                 d = ImageDraw.Draw(im)
                 y = top + 34 * len(wrap(d, card["outlet"], f_out, HEADLINE_WRAP))
                 head_end = draw_headline(ImageDraw.Draw(Image.new("RGB", (W, H))), y + 12,
-                                         card["headline"], card.get("yellow_words"))
+                                         card["headline"], card.get("yellow_words"), size=HEADLINE_SIZE)
                 im.paste(Image.new("RGB", (W, H), BLACK), (0, 0),
                          scrim(max(head_end + 50, content_top(scene)), dot_top - 10))
                 cache["base"] = im
@@ -327,7 +337,7 @@ def render_card(scene, dur):
             for line in wrap(d, card["outlet"], f_out, HEADLINE_WRAP):
                 d.text((40, y), line, font=f_out, fill=(200, 210, 230))
                 y += 34
-            y = draw_headline(d, y + 12, card["headline"], card.get("yellow_words"))
+            y = draw_headline(d, y + 12, card["headline"], card.get("yellow_words"), size=HEADLINE_SIZE)
             if card.get("image_source"):
                 d.text((40, y + 10), card["image_source"], font=font(REG, 18), fill=SOURCE_TEXT)
             d.line([(70, dot_top + 6), (70, dot_top + 40)], fill=YELLOW, width=4)
@@ -340,7 +350,7 @@ def render_card(scene, dur):
             for line in wrap(d, card["outlet"], f_out, HEADLINE_WRAP):
                 d.text((40, y), line, font=f_out, fill=(170, 185, 210))
                 y += 34
-            y = draw_headline(d, y + 12, card["headline"], card.get("yellow_words"))
+            y = draw_headline(d, y + 12, card["headline"], card.get("yellow_words"), size=HEADLINE_SIZE)
             y = max(y, content_top(scene) - 20)     # the line-and-dot starts below the captions
             d.line([(70, y + 20), (70, y + 140)], fill=YELLOW, width=4)
             d.ellipse([58, y + 140, 82, y + 164], fill=YELLOW)
@@ -594,7 +604,7 @@ def render_end_card(scene, warnings):
     im = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(im)
     y = draw_headline(d, SAFE_TOP, scene.get("headline", "CHECK BEFORE YOU SHARE"),
-                      scene.get("yellow_words"))
+                      scene.get("yellow_words"), size=HEADLINE_SIZE)
     p = scene.get("pointer")
     if p and p.get("image"):
         # A screenshot of the article itself (headline and byline), shown
@@ -698,7 +708,7 @@ def render_summary(scene, dur, warnings):
     base = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(base)
     y = draw_headline(d, SAFE_TOP, sm.get("title") or scene.get("headline") or "KEY FACTS",
-                      sm.get("yellow_words", scene.get("yellow_words")))
+                      sm.get("yellow_words", scene.get("yellow_words")), size=HEADLINE_SIZE)
     f_foot = font(REG, 18)
     foot_lines = [ln for t in (sm.get("sources"), scene.get("disclosure")) if t
                   for ln in wrap(d, t, f_foot, W - 80)]
@@ -802,6 +812,135 @@ def summary_panels_shown(scene, dur):
     shown = min(int(scene.get("_summary_shown", 0)), n)
     last = (frames_for(dur) - 1) / FPS
     return min(n, shown + int(last / 0.35 + 1e-9))
+
+
+STAT_COUNT_SECONDS = 0.6     # a numeric stat counts up over this, ease-out
+STAT_POP = (0.72, 0.9, 1.06, 1.0)   # a non-numeric stat pops in over 4 steps (0.05s each)
+
+
+def stat_time(scene, dur):
+    """When the figure lands: the narrated word that starts with the
+    figure's digits (the same measured word times as the captions), else
+    stat.at, else 0.3s into the shot."""
+    st = scene["stat"]
+    if "at" in st:
+        return max(0.0, min(float(st["at"]), dur - 0.3))
+    digits = _norm_word(st["value"])
+    words = [_norm_word(w) for w in scene.get("narration", "").split()]
+    wt = scene.get("_word_times")
+    if digits and wt and len(wt) == len(words):
+        off = scene.get("_shot_start", 0.0)
+        for n, w in enumerate(words):
+            if w and (w.startswith(digits) or digits.startswith(w)) and wt[n] >= off - 0.05:
+                return max(0.0, min(wt[n] - off, dur - 0.3))
+    return min(0.3, dur / 4)
+
+
+def render_stat(scene, dur):
+    """A stat shot: one sourced figure, big, with a short label under it,
+    arriving on the word that says it. A plain number counts up to its value
+    (STAT_COUNT_SECONDS, ease-out); anything else ("0 of 5", "21 OCT") pops
+    in. The label shows from the first frame. On the background blue with grain, or as transparent stages over an
+    AI motion clip ("motion_clip"), like the diagram.
+
+    stat: {"value": "9.2", "label": "severity score, 10 = most severe",
+           "source": "PHP ADVISORY • 21 OCT 2026", "motion_clip": "...",
+           "clip_start": 0, "at": 0.4}"""
+    from PIL import Image, ImageDraw
+    st = scene["stat"]
+    transparent = bool(st.get("motion_clip"))
+    layer = text_layer(scene)[0]
+    value = str(st["value"])
+    top, bottom = content_top(scene), KEEP_BOTTOM
+    d0 = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    size = 230
+    while size > 60 and d0.textlength(value, font=font(BOLD, size)) > W - 80:
+        size -= 6
+    f_lab = font(BOLD, 40)
+    lab_lines = wrap(d0, st.get("label", ""), f_lab, W - 120)
+    block = size + 30 + 50 * len(lab_lines)
+    y_val = top + max(0, (bottom - top - block) // 2) - 20
+
+    def frame(text, scale=1.0, label=True):
+        im = Image.new("RGBA", (W, H), (0, 0, 0, 0)) if transparent else Image.new("RGB", (W, H), BG)
+        d = ImageDraw.Draw(im)
+        f = font(BOLD, max(8, round(size * scale)))
+        tw = d.textlength(text, font=f)
+        yy = y_val + (size - f.size) / 2
+        d.text(((W - tw) / 2, yy), text, font=f, fill=YELLOW, stroke_width=4, stroke_fill=BLACK)
+        if label:
+            ly = y_val + size + 30
+            for ln in lab_lines:
+                lw = d.textlength(ln, font=f_lab)
+                d.text(((W - lw) / 2, ly), ln, font=f_lab, fill=WHITE, stroke_width=3,
+                       stroke_fill=BLACK)
+                ly += 50
+        return im
+
+    t0 = stat_time(scene, dur)
+    # The label is on screen from the start, so the shot is never empty
+    # while the voice leads up to the figure.
+    stages = [(frame("", label=True), layer, 0.0)] if t0 > 0 else []
+    m = re.fullmatch(r"([^\d]*)(\d+(?:\.\d+)?)([^\d]*)", value)
+    if m and float(m.group(2)) > 0:
+        pre, num, post = m.groups()
+        dec = len(num.split(".")[1]) if "." in num else 0
+        steps = max(2, round(STAT_COUNT_SECONDS * FPS / 2))
+        for k in range(steps + 1):
+            p = k / steps
+            e = 1 - (1 - p) ** 3
+            shown = f"{pre}{float(num) * e:.{dec}f}{post}" if k < steps else value
+            stages.append((frame(shown), layer, t0 + p * STAT_COUNT_SECONDS))
+    else:
+        for k, sc in enumerate(STAT_POP):
+            stages.append((frame(value, sc), layer, t0 + 0.05 * k))
+    return stages
+
+
+WIPE_SECONDS = 0.5     # a graphic wipe: a blue panel with yellow edges crosses the frame
+WIPE_EDGE = 18
+
+
+def apply_wipe(path, prev_path, prev_frames, frames, direction, work, name):
+    """Turn the first WIPE_SECONDS of a rendered shot into a graphic wipe from
+    the previous shot: a panel in the reel's blue with yellow edges sweeps
+    across (from the right for "left", from the bottom for "up"), covering the
+    previous shot's last frame and uncovering this one. The shot keeps its
+    exact frame count. Captions are burned over the joined reel afterwards,
+    so the wipe never covers them."""
+    from PIL import Image, ImageDraw
+    last = os.path.join(work, f"{name}_wipe_prev.png")
+    run(["ffmpeg", "-y", "-v", "error", "-i", prev_path, "-vf", f"select=eq(n\\,{prev_frames - 1})",
+         "-fps_mode", "passthrough", "-frames:v", "1", last])
+    vertical = direction == "up"
+    pw, ph = (W, H + 2 * WIPE_EDGE) if vertical else (W + 2 * WIPE_EDGE, H)
+    panel = Image.new("RGB", (pw, ph), BG)
+    d = ImageDraw.Draw(panel)
+    if vertical:
+        d.rectangle([0, 0, W, WIPE_EDGE - 1], fill=YELLOW)
+        d.rectangle([0, ph - WIPE_EDGE, W, ph], fill=YELLOW)
+    else:
+        d.rectangle([0, 0, WIPE_EDGE - 1, H], fill=YELLOW)
+        d.rectangle([pw - WIPE_EDGE, 0, pw, H], fill=YELLOW)
+    pnl = os.path.join(work, f"{name}_wipe_panel.png")
+    panel.save(pnl)
+    D = WIPE_SECONDS
+    p = f"min(t/{D},1)"          # every expression below sits inside '...': plain commas
+    e = f"({p}*{p}*(3-2*{p}))"                       # smoothstep ease in and out
+    span = (H + ph) if vertical else (W + pw)
+    k = (H if vertical else W) / span                # the panel covers the frame from here
+    pos = f"{H if vertical else W}-{span}*{e}"
+    xy = f"x=0:y='{pos}'" if vertical else f"x='{pos}':y=0"
+    tmp = os.path.join(work, f"{name}_wipe.mp4")
+    run(["ffmpeg", "-y", "-v", "error", "-i", path,
+         "-loop", "1", "-framerate", str(FPS), "-i", last,
+         "-loop", "1", "-framerate", str(FPS), "-i", pnl,
+         "-filter_complex",
+         f"[0:v][1:v]overlay=0:0:enable='lt({e},{k:.4f})'[a];"
+         f"[a][2:v]overlay={xy}:eval=frame:enable='lt(t,{D})',format=yuv420p",
+         "-an", "-frames:v", str(frames), "-c:v", "libx264", tmp])
+    os.replace(tmp, path)
+    return path
 
 
 def render_plain(scene):
@@ -1008,6 +1147,11 @@ def render_shot(sh, dur, work, name, warnings):
         return clip_to_video(sh, dur, work, name)
     if sh.get("card"):
         stages = render_card(sh, dur)
+    elif sh.get("stat") and sh["stat"].get("motion_clip"):
+        return stages_over_clip(render_stat(sh, dur), sh["stat"]["motion_clip"],
+                                float(sh["stat"].get("clip_start", 0)), dur, work, name)
+    elif sh.get("stat"):
+        stages = render_stat(sh, dur)
     elif sh.get("diagram") and sh["diagram"].get("motion_clip"):
         return stages_over_clip(render_diagram(sh, dur), sh["diagram"]["motion_clip"],
                                 float(sh["diagram"].get("clip_start", 0)), dur, work, name)

@@ -8,7 +8,7 @@ from reel_common import *  # noqa: F401,F403
 VISUAL_KEYS = ("image", "fit_image", "clip", "card", "diagram", "end_card",
                "timeline", "keep",
                "image_source", "full_bleed", "clip_mask",
-               "clip_start", "clip_end", "move", "summary", "schematic")
+               "clip_start", "clip_end", "move", "summary", "schematic", "stat", "wipe")
 
 
 def expand_shots(scene):
@@ -17,7 +17,10 @@ def expand_shots(scene):
     if not scene.get("shots"):
         return [dict(scene)]
     base = {k: v for k, v in scene.items() if k not in VISUAL_KEYS + ("shots",)}
-    return [{**base, **sh} for sh in scene["shots"]]
+    shots = [{**base, **sh} for sh in scene["shots"]]
+    if scene.get("wipe") and "wipe" not in shots[0]:
+        shots[0]["wipe"] = scene["wipe"]     # a beat's wipe opens its first shot
+    return shots
 
 
 def image_problem(path):
@@ -60,20 +63,25 @@ def last_sentence(text, question=False):
 
 def loop_back_problem(scenes):
     """None, or why the last narration doesn't loop back to the hook: it
-    should end with the hook's open question (or promise), in matching or
-    shortened wording."""
+    should echo the hook's open question (or promise), in matching or
+    shortened wording, in one of its last two sentences, so it can ask the
+    question again and then answer it in a short clause."""
     hook = " ".join(scenes[i].get("narration", "") for i in hook_indices(scenes))
     q = last_sentence(hook, question=True) or last_sentence(hook)
-    end = last_sentence(scenes[-1].get("narration", ""))
-    a, b = content_words(q), content_words(end)
-    if not a or not b:
+    text = scenes[-1].get("narration", "").strip()
+    sents = [x.strip() for x in re.split(r"(?<=[.!?])\s+", text) if x.strip()][-2:]
+    a = content_words(q)
+    if not a or not any(content_words(x) for x in sents):
         return None
-    shared = len(a & b) / min(len(a), len(b))
-    if shared >= 0.6:
-        return None
-    return (f"the last narration line {end!r} doesn't loop back to the hook's "
-            f"{'question' if q.endswith('?') else 'promise'} {q!r}. End the reel with it "
-            "(a shortened form is fine), or set \"loop_back\": false if the user asked not to.")
+    for x in sents:
+        b = content_words(x)
+        if b and len(a & b) / min(len(a), len(b)) >= 0.6:
+            return None
+    end = " ".join(sents)
+    return (f"the reel's last lines {end!r} don't loop back to the hook's "
+            f"{'question' if q.endswith('?') else 'promise'} {q!r}. Echo it in one of the last "
+            "two sentences (then answer it in a short clause), or set \"loop_back\": false if "
+            "the user asked not to.")
 
 
 def clip_info(path):
@@ -116,7 +124,7 @@ def validate(scenes, args, man=None):
         if s.get("body"):
             warnings.append(f"scene {sid}: 'body' dropped (no double text); keep it in narration.")
         has_visual = any(s.get(k) for k in ("image", "clip", "card", "diagram", "summary",
-                                            "timeline"))
+                                            "timeline", "stat"))
         if not has_visual and not s.get("end_card") and not args.allow_plain:
             errors.append(f"scene {sid}: no image, clip, card, diagram or timeline. Add one, or "
                           "pass --allow-plain and justify it in the delivery notes.")
@@ -136,9 +144,15 @@ def validate(scenes, args, man=None):
         for ev in (s.get("timeline") or {}).get("events", []):
             if not ev.get("time") or not ev.get("text"):
                 errors.append(f"scene {sid}: every timeline event needs 'time' and 'text'.")
-        if s.get("headline") and len(s["headline"].split()) > 6:
-            errors.append(f"scene {sid}: headline has {len(s['headline'].split())} words; "
-                          "the limit is 6 per shot (aim for 2-4).")
+        if s.get("headline") and not s.get("end_card") and not s.get("summary"):
+            _, hl = headline_lines(s["headline"])
+            if len(hl) > HEADLINE_MAX_LINES:
+                errors.append(f"scene {sid}: headline {s['headline']!r} needs {len(hl)} lines; the "
+                              f"limit is {HEADLINE_MAX_LINES} (about 40 characters). Keep who + what, "
+                              "drop the rest to the caption.")
+            elif len(s["headline"].split()) < 3 and not s.get("card"):
+                warnings.append(f"scene {sid}: headline {s['headline']!r} has under 3 words; check "
+                                "a viewer reading only it knows who did what (SKILL.md, Headlines).")
         if s.get("card") and not all(s["card"].get(k) for k in ("outlet", "headline")):
             errors.append(f"scene {sid}: card needs 'outlet' and 'headline'.")
         elif s.get("card") and len(s["card"]["headline"].replace("…", " ").split()) > 10:
@@ -193,6 +207,30 @@ def validate(scenes, args, man=None):
         if "move" in s and (s["move"] not in MOVES or not s.get("image") or s.get("card")):
             errors.append(f"scene {sid}: 'move' must be one of {', '.join(MOVES)}, on a still "
                           f"image shot, got {s['move']!r}.")
+        if i in hook and s.get("full_bleed") is False:
+            errors.append(f"scene {sid}: the hook fills the frame; \"full_bleed\": false is not "
+                          "allowed on a hook shot. Tighten the keep box to the subject, pick a "
+                          "photo that fits 9:16, or use a clip.")
+        if i in hook and s.get("image") and not s.get("clip") and not s.get("card"):
+            warnings.append(f"scene {sid}: the hook is a still image. Footage or a Muse video "
+                            "holds the first second far better; log in facts.md why no clip "
+                            "works if you keep the still.")
+        st = s.get("stat")
+        if st is not None:
+            if not (isinstance(st, dict) and st.get("value") and st.get("label")):
+                errors.append(f"scene {sid}: 'stat' needs 'value' and 'label'.")
+            elif not st.get("source"):
+                errors.append(f"scene {sid}: stat {st['value']!r} needs 'source' (outlet + date): "
+                              "a figure always shows where it comes from.")
+            elif len(str(st["value"])) > 12:
+                errors.append(f"scene {sid}: stat value {st['value']!r} is over 12 characters; "
+                              "put the words in 'label'.")
+            if isinstance(st, dict) and st.get("motion_clip") and not os.path.exists(st["motion_clip"]):
+                errors.append(f"scene {sid}: stat motion_clip not found: {st['motion_clip']}")
+        if s.get("wipe") not in (None, False, True, "left", "up"):
+            errors.append(f"scene {sid}: 'wipe' must be \"left\" or \"up\", got {s['wipe']!r}.")
+        if s.get("wipe") and i == 0 and j == 0:
+            errors.append(f"scene {sid}: the first shot has nothing to wipe from.")
         if i in hook and s.get("image") and not s.get("card") and not s.get("clip") \
                 and s.get("move") not in MOVES:
             errors.append(f"scene {sid}: the hook can't be a still image. Use a clip (real "
@@ -254,6 +292,9 @@ def validate(scenes, args, man=None):
     maps = [s for sc in scenes for s in expand_shots(sc) if s.get("schematic")]
     if len(maps) > 1:
         warnings.append("more than one map shot; the spec shows the map once.")
+    wipes = sum(1 for _, _, _, sh in units if sh.get("wipe"))
+    if wipes > 3:
+        warnings.append(f"{wipes} graphic wipes; use 1-3 per reel, at section turns.")
     return errors, warnings
 
 

@@ -20,6 +20,13 @@ FAINT = (185, 195, 210)      # faint card body: subdued but readable
 
 SAFE_TOP = 140               # first tag/headline line (>= 120px safe area)
 HEADLINE_WRAP = 640          # headlines never run off the right edge
+HEADLINE_SIZE = 52           # one-line headline
+HEADLINE_SIZES_2 = (44, 40)  # a headline that needs two lines drops to the first of these
+                             # that fits it in two, so the header stack (source line + 2
+                             # lines) still ends above the caption band at y=300 and the
+                             # captions keep their place. Two lines at 40px hold about
+                             # 40 characters (6-8 words).
+HEADLINE_MAX_LINES = 2
 SOURCE_TEXT = (190, 205, 230)  # muted source line, above the headline
 KEEP_BOTTOM = 1030           # bottom safe area: the platform's own caption, name and
                              # buttons cover the last ~250px, so content stays above
@@ -92,6 +99,20 @@ def wrap(draw, text, fnt, max_w):
     if cur:
         lines.append(cur)
     return lines
+
+
+def headline_lines(text):
+    """(size, lines) for a shot headline: one line at HEADLINE_SIZE if it
+    fits, otherwise at the first of HEADLINE_SIZES_2 that fits two lines.
+    Validation rejects a headline that needs more than HEADLINE_MAX_LINES."""
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    for n, size in enumerate((HEADLINE_SIZE,) + HEADLINE_SIZES_2):
+        f = font(BOLD, size)
+        lines = [ln for part in text.split("\n") for ln in wrap(d, part, f, HEADLINE_WRAP)]
+        if len(lines) <= (1 if n == 0 else HEADLINE_MAX_LINES):
+            break
+    return size, lines
 
 
 def cover_crop(img, tw, th):

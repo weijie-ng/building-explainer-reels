@@ -47,12 +47,45 @@ def concat_list(paths, listing):
     return listing
 
 
-def mix(beat_audio, total, work, music_bed=True):
-    """Join the beats' audio, add the music bed, compress and normalise.
-    Returns the path of the finished 48 kHz stereo WAV."""
+SFX = {
+    # Generated accents (no copyrighted SFX), mixed well under the voice: a
+    # low hit lands with a stat's figure. Wipes stay silent (the user's call).
+    "hit": ("sine=frequency=55:duration=0.6:sample_rate=48000",
+            "volume=1.6,afade=t=out:st=0.02:d=0.55:curve=exp,volume=0.55"),
+}
+
+
+def sfx_track(cues, total, work):
+    """One stereo track of the accents at their cue times: [(name, seconds)]."""
+    inputs, chains = [], []
+    for n, (name, t) in enumerate(cues):
+        src, filt = SFX[name]
+        inputs += ["-f", "lavfi", "-i", src]
+        ms = max(0, int(round(t * 1000)))
+        chains.append(f"[{n}:a]{filt},aformat=sample_rates=48000:channel_layouts=stereo,"
+                      f"adelay={ms}|{ms}[s{n}]")
+    out = os.path.join(work, "sfx.wav")
+    mixin = "".join(f"[s{n}]" for n in range(len(cues)))
+    run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex",
+         ";".join(chains) + f";{mixin}amix=inputs={len(cues)}:normalize=0,apad,"
+         f"atrim=0:{total:.3f}[x]", "-map", "[x]", "-ar", "48000", "-ac", "2", out])
+    return out
+
+
+def mix(beat_audio, total, work, music_bed=True, cues=None):
+    """Join the beats' audio, add the music bed and the sound accents
+    (cues: [(name, seconds)]), compress and normalise. Returns the path of
+    the finished 48 kHz stereo WAV."""
     joined = os.path.join(work, "audio_only.wav")
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
          "-i", concat_list(beat_audio, os.path.join(work, "audios.txt")), "-c", "copy", joined])
+    cues = [c for c in (cues or []) if 0 <= c[1] < total]
+    if cues:
+        fx = sfx_track(cues, total, work)
+        with_fx = os.path.join(work, "voice_fx.wav")
+        run(["ffmpeg", "-y", "-v", "error", "-i", joined, "-i", fx, "-filter_complex",
+             "[0:a][1:a]amix=inputs=2:normalize=0:duration=first[a]", "-map", "[a]", with_fx])
+        joined = with_fx
     if music_bed:
         # Original sine-pad music bed (no copyrighted music), mixed low and
         # kept under 400 Hz, so the voice sits clearly on top.

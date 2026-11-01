@@ -8,14 +8,17 @@
       "id": "hook-ai",
       "narration": "A market crash.",
       "material": "ai",
-      "headline": "MARKET CRASH",
-      "clip": "market_crash_ai.mp4"
+      "headline": "INDONESIA'S STOCK MARKET CRASHES",
+      "clip": "market_crash_ai.mp4",
+      "yellow_words": [
+        "CRASHES"
+      ]
     },
     {
       "id": "hook-real",
       "narration": "A made-up meeting. So what really happened?",
       "material": "real",
-      "headline": "MARKET CRASH",
+      "headline": "INDONESIA'S STOCK MARKET CRASHES",
       "image": "idx.jpg",
       "image_source": "BILYONARYO • IDX, OCT 2026",
       "keep": [
@@ -24,15 +27,18 @@
         0.75,
         0.7
       ],
-      "move": "push"
+      "move": "push",
+      "yellow_words": [
+        "CRASHES"
+      ]
     },
     {
       "id": "clip",
       "narration": "On 19 October, Muhammad Lutfi alleged, without evidence, that Singapore pulled the strings.",
       "material": "real",
-      "headline": "THE CLAIM",
+      "headline": "LUTFI CLAIMS SINGAPORE PULLED STRINGS",
       "yellow_words": [
-        "CLAIM"
+        "CLAIMS"
       ],
       "clip": "lutfi_clip.mp4",
       "clip_start": 0.0,
@@ -56,9 +62,9 @@
       "id": "diagram",
       "narration": "Through GIC and Temasek, pressured index provider MSCI over Indonesia.",
       "material": "diagram",
-      "headline": "THE CHAIN",
+      "headline": "THE CLAIMED CHAIN, STEP BY STEP",
       "yellow_words": [
-        "CHAIN"
+        "CLAIMED"
       ],
       "diagram": {
         "nodes": [
@@ -76,9 +82,9 @@
       "narration": "Then came a second claim, that Dino Patti Djalal and Saiful Mujani met Singapore's ambassador.",
       "material": "real",
       "disinformation": "CNA Verify",
-      "headline": "MET THE AMBASSADOR",
+      "headline": "POSTS CLAIM A SECRET AMBASSADOR MEETING",
       "yellow_words": [
-        "MET"
+        "SECRET"
       ],
       "image": "meeting_posts.jpg",
       "image_source": "CNA • MEETING-CLAIM POSTS",
@@ -107,7 +113,7 @@
       "id": "denial-x",
       "narration": "The chain was denied.",
       "material": "diagram",
-      "headline": "CHAIN DENIED",
+      "headline": "ALL SIDES DENY THE CHAIN",
       "yellow_words": [
         "DENIED"
       ],
@@ -119,13 +125,14 @@
           "IDX"
         ],
         "stage": "X"
-      }
+      },
+      "wipe": "left"
     },
     {
       "id": "gas-map",
       "narration": "Indonesia did reduce gas exports on 24 October, for domestic supply reasons.",
       "material": "ai",
-      "headline": "GAS FLOW",
+      "headline": "INDONESIA CUT GAS EXPORTS ON 24 OCT",
       "yellow_words": [
         "GAS"
       ],
@@ -142,7 +149,7 @@
       "id": "distinction",
       "narration": "The gas cut is real. Tying it to MSCI interference is false.",
       "material": "real",
-      "headline": "TYING IT TO MSCI = FALSE",
+      "headline": "GAS CUT REAL, MSCI LINK FALSE",
       "yellow_words": [
         "FALSE"
       ],
@@ -156,6 +163,20 @@
       ]
     },
     {
+      "id": "scale",
+      "narration": "About 400 posts spread the claims, CNA Verify found.",
+      "material": "recreated",
+      "headline": "CNA VERIFY: ABOUT 400 POSTS SPREAD IT",
+      "yellow_words": [
+        "400"
+      ],
+      "stat": {
+        "value": "~400",
+        "label": "posts spreading the claims",
+        "source": "CNA VERIFY • 29 OCT 2026"
+      }
+    },
+    {
       "id": "shots-example",
       "narration": "Two outlets reported the denial the same morning.",
       "material": "real",
@@ -163,7 +184,7 @@
         {
           "image": "photo_a.jpg",
           "image_source": "OUTLET A • 25 OCT 2026",
-          "headline": "DENIED",
+          "headline": "OUTLET A REPORTS THE DENIAL",
           "keep": [
             0.2,
             0.1,
@@ -174,7 +195,7 @@
         {
           "image": "photo_b.jpg",
           "image_source": "OUTLET B • 25 OCT 2026",
-          "headline": "DENIED AGAIN",
+          "headline": "OUTLET B REPORTS IT TOO",
           "keep": [
             0.1,
             0.2,
@@ -189,7 +210,7 @@
       "id": "timeline",
       "narration": "It began on 19 October; the denials followed within a week.",
       "material": "diagram",
-      "headline": "HOW IT UNFOLDED",
+      "headline": "HOW THE CLAIM UNFOLDED",
       "yellow_words": [
         "UNFOLDED"
       ],
@@ -278,5 +299,6 @@
         }
       ]
     }
-  ]
+  ],
+  "sfx": true
 }

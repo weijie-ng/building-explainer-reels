@@ -39,7 +39,7 @@ without rebuilding the rest:
   mux      join the shots, burn the captions, mux -> --out, then the self-check
   sync     check_sync.py on --out: captions against the voice (S1-S6)
 Modules: reel_common (constants, helpers), reel_manifest (loading,
-validation), reel_continuity (what carries on across a cut), reel_render (shot renderers), reel_subs (phrasing, Whisper
+validation), reel_continuity (what carries on across a cut), reel_render (shot renderers, stat, wipe), reel_pace (slideshow check), reel_subs (phrasing, Whisper
 timing, caption ASS), reel_audio (narration, music, loudness), check_sync (sync check),
 check_ai_animation (how long an AI animation of a graphic stays faithful).
 
@@ -47,13 +47,15 @@ Manifest (see examples/sample-manifest.json):
 {
   "title": "...", "output": "reel.mp4", "voice": "...", "max_duration": 60,
   "music_bed": true,
-  "loop_back": true,               // the last line must echo the hook's question
+  "loop_back": true,               // one of the last two sentences echoes the hook's question
+  "sfx": true,                     // generated low hit when a stat lands (false: none)
   "allow_save_prompt": false,      // true only if the user asked for "save this"
   "scenes": [{
     "id": "hook",
     "narration": "A market crash. A made-up meeting.",
     "material": "real",            // REQUIRED: real | ai | recreated | diagram
-    "headline": "MARKET CRASH",    // 2-4 words, at most 6; wrapped at 640px
+    "headline": "IDX STOCKS CRASH 8% IN A DAY",  // who + what, self-explaining;
+                                   // one line at 52px, or two at 44px (max)
     "yellow_words": ["MARKET"],    // optional; default = first word yellow
     "disinformation": "CNA Verify",// optional: adds "DISINFORMATION POST -
                                    // flagged by CNA Verify" tag, the only
@@ -66,7 +68,8 @@ Manifest (see examples/sample-manifest.json):
     "full_bleed": true,            // optional: fill the screen (cover-crop,
                                    // centred on "keep", or the image centre
                                    // with no keep); a large keep box still
-                                   // wins over filling
+                                   // wins over filling. Hook stills always
+                                   // fill; false is rejected on the hook
     "move": "push",                // optional, on a still image: push | pan |
                                    // inset (required on hook stills)
     "clip_end": 2.4,               // optional: stop the clip here and hold
@@ -76,6 +79,9 @@ Manifest (see examples/sample-manifest.json):
                                    // isn't 9:16; its audio is dropped
     "clip_mask": [[4, 100, 556, 280]],  // delogo boxes [x, y, w, h] in
                                    // 720x1280 output pixels; x must be > 0
+    "wipe": "left",                // optional: open this shot with a graphic
+                                   // wipe from the previous one ("left" or
+                                   // "up"); 1-3 per reel, at section turns
     "schematic": true,             // on an AI-generated map (material "ai"):
                                    // label "AI-GENERATED MAP • SCHEMATIC"
     "caption_nudge": {"$6.3": -0.2},  // optional: shift single caption words
@@ -107,6 +113,12 @@ Scene types:
   diagram already showed ("from": n overrides); stage "X" shows all nodes,
   then snaps a red X onto the arrow leaving node "cross_after" (default 1,
   the second arrow).
+- stat: {"value": "9.2", "label": "severity score, 10 = most severe",
+  "source": "PHP ADVISORY • 21 OCT 2026", "motion_clip": "...", "clip_start": 0,
+  "at": 0.4}. One sourced figure, big, with its label, landing on the word
+  that says it (or "at" seconds): a plain number counts up, anything else
+  ("0 of 5", "21 OCT") pops in. Over the reel blue, or over an AI motion
+  clip like the diagram. Use material "recreated".
 - Maps are not drawn here: generate one with Muse and pass it as "clip" or
   "image" with "material": "ai" and "schematic": true (SKILL.md, "Map").
 - timeline: {"events": [{"time": "29 OCT 20:05", "text": "...",
@@ -141,9 +153,10 @@ wins):
   sweep is timed from the beat's measured word times when the key sentence is in
   the narration. On top of that: the card highlight sweep and the diagram reveal and X. Real clips get no added zoom; AI clips keep
   their own motion. "move" adds a push, pan or inset to a still image (the
-  hook needs a clip or a moving image). Graphic wipes, slide-ins and particle
-  overlays from SKILL.md's motion table are not generated here; make them
-  as clips and pass them in.
+  hook needs a clip or a moving image). "wipe" on a shot opens it with a
+  graphic wipe (a blue panel with yellow edges crossing the frame in 0.5s,
+  under the captions). Slide-ins and particle overlays from SKILL.md's
+  motion table are not generated here; make them as clips and pass them in.
 - Stills zoom as far as their "keep" box allows: the keep box always stays
   whole, inside the frame and between the caption band and the bottom safe
   area (y=1030), even at the end of the creep. A small keep box (a logo, a face) fills the
@@ -151,8 +164,12 @@ wins):
   it whole. Space the image leaves is filled with a blurred copy of it,
   tinted with the reel's blue. No keep box means the whole image is kept.
   AI images, hook stills, and stills with "full_bleed": true, fill the
-  screen (a hook still opts out with "full_bleed": false). Clips (real or
-  AI) are always cover-scaled to fill the screen.
+  screen. Clips (real or AI) are always cover-scaled to fill the screen.
+- Pace (reel_pace.py, printed at the dry run and after the build, warnings
+  only): stills over half the reel's time, fewer than one video shot per
+  ~15s, over 6s of stills back to back, one image in more than 2 shots or
+  coming back after other shots, one still on screen over 4s across super
+  changes, a still covering under 40% of the frame, no wipe in a reel over 30s.
 - Safe area: tags/headlines start at y=140; nothing the viewer must read
   goes below y=1030 (the platform's caption, name and buttons). The source
   line sits in small muted type between the tags and the headline.
@@ -210,7 +227,9 @@ from reel_subs import (WHISPER_MODEL, whisper_words, match_words, apply_nudges, 
                        caption_events, write_ass)
 from reel_manifest import (load_manifest, validate, check_tools, expand_shots,  # noqa: E402
                            hook_indices)
-from reel_render import render_shot, source_label, diagram_plate, header_bottom  # noqa: E402
+from reel_render import (render_shot, source_label, diagram_plate, header_bottom,  # noqa: E402
+                         apply_wipe, stat_time)
+from reel_pace import pace_report, print_table, shot_kind, coverage  # noqa: E402
 from reel_continuity import Continuity  # noqa: E402
 import reel_audio  # noqa: E402
 import check_sync  # noqa: E402
@@ -386,6 +405,7 @@ class Build:
         on the previous shot's visual (same clip, still, card, timeline or
         diagram) carries its animation on too: see reel_continuity."""
         plan, warnings, cont = [], [], Continuity()
+        self.cues = []          # sound accents: (name, reel seconds, beat index)
         hook = set(hook_indices(self.scenes))
         self.caption_tops, self.no_caption = {}, []
         for b in self.timeline[:upto]:
@@ -415,8 +435,10 @@ class Build:
                     self.no_caption.append((b["start"] + bounds[j] / FPS,
                                             b["start"] + bounds[j + 1] / FPS))
                 where = f"beat {s.get('id')} shot {j + 1}"
-                if sh.get("material") == "ai" and shot_dur > 3.0 + 1 / FPS:
-                    warnings.append(f"{where}: AI shot runs {shot_dur:.2f}s; the spec caps AI shots at 3s.")
+                ai_cap = 4.0 if sh.get("clip") else 3.0
+                if sh.get("material") == "ai" and shot_dur > ai_cap + 1 / FPS:
+                    warnings.append(f"{where}: AI shot runs {shot_dur:.2f}s; the spec caps AI "
+                                    f"{'video' if sh.get('clip') else 'stills'} at {ai_cap:.0f}s.")
                 limit = 5.0 if any(sh.get(k) for k in ("card", "timeline", "end_card", "summary")) else 4.0
                 if b["i"] == len(self.scenes) - 1 and (sh.get("end_card") or sh.get("summary")):
                     # The end card runs for the loop-back narration, however
@@ -446,9 +468,13 @@ class Build:
                 if shot_dur > limit + 1 / FPS:
                     warnings.append(f"{where}: runs {shot_dur:.2f}s, over the {limit:.0f}s shot limit; "
                                     "add shots.")
+                t_shot = b["start"] + bounds[j] / FPS
+                if sh.get("stat"):
+                    self.cues.append(("hit", t_shot + stat_time(sh, shot_dur), b["i"]))
                 plan.append((b["i"], j, sh, shot_dur, f"scene{b['i']}_{j}"))
         cont.finish()
-        return plan, warnings
+        self.pace_rows, pace_warnings = pace_report(plan)
+        return plan, warnings + pace_warnings
 
     def render(self, plan, only=None):
         """Render the planned shots (only the given beat indices, if set),
@@ -456,19 +482,36 @@ class Build:
         shot_dir = os.path.join(self.work, "shots")
         os.makedirs(shot_dir, exist_ok=True)
         warnings, rendered = [], 0
-        for i, j, sh, dur, name in plan:
+        keys = []
+        for n, (i, j, sh, dur, name) in enumerate(plan):
+            assets = [sh.get("image"), sh.get("clip"), (sh.get("card") or {}).get("image"),
+                      (sh.get("diagram") or {}).get("motion_clip"),
+                      (sh.get("stat") or {}).get("motion_clip"),
+                      (sh.get("pointer") or {}).get("image") if isinstance(sh.get("pointer"), dict) else None]
+            # A wipe shows the previous shot's last frame, so it re-renders when that shot changes.
+            prev_key = keys[n - 1] if sh.get("wipe") and n else None
+            keys.append(digest([{k: v for k, v in sh.items() if k not in ("_mode",)}, round(dur, 4),
+                                [file_sig(a) for a in assets if a], FONT_DIR, prev_key,
+                                # a renderer change (a skill update) re-renders every shot
+                                file_sig(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                      "reel_render.py"))]))
+        for n, (i, j, sh, dur, name) in enumerate(plan):
             if only is not None and i not in only:
                 continue
             path = os.path.join(shot_dir, f"{name}.mp4")
-            assets = [sh.get("image"), sh.get("clip"), (sh.get("card") or {}).get("image"),
-                      (sh.get("diagram") or {}).get("motion_clip"),
-                      (sh.get("pointer") or {}).get("image") if isinstance(sh.get("pointer"), dict) else None]
-            key = digest([{k: v for k, v in sh.items() if k not in ("_mode",)}, round(dur, 4),
-                          [file_sig(a) for a in assets if a], FONT_DIR])
+            key = keys[n]
             if not self.args.force and os.path.exists(path) and cached(path + ".key", key):
                 verify_video(path, frames_for(dur), f"shot {name}")
                 continue
             render_shot(sh, dur, shot_dir, name, warnings)
+            if sh.get("wipe") and n:
+                prev = plan[n - 1]
+                prev_path = os.path.join(shot_dir, f"{prev[4]}.mp4")
+                if not os.path.exists(prev_path):
+                    sys.exit(f"shot {name} wipes from {prev[4]}, which isn't rendered yet; "
+                             "run --stage shots without --beat first.")
+                apply_wipe(path, prev_path, frames_for(prev[3]), frames_for(dur),
+                           "up" if sh["wipe"] == "up" else "left", shot_dir, name)
             verify_video(path, frames_for(dur), f"shot {name}")
             save_key(path + ".key", key, mode=sh.get("_mode"))
             rendered += 1
@@ -499,11 +542,13 @@ class Build:
             if i not in indices:
                 continue
             n = frames_for(dur)
-            visual = next((k for k in ("clip", "image", "card", "diagram", "timeline",
+            visual = next((k for k in ("clip", "image", "card", "stat", "diagram", "timeline",
                                        "summary", "end_card") if sh.get(k)), "plain")
             rows.append({"beat": self.scenes[i].get("id"), "shot": j + 1,
                          "start": round(t / FPS, 3), "end": round((t + n) / FPS, 3), "frames": n,
                          "visual": visual, "move": sh.get("move"), "material": sh.get("material"),
+                         "kind": shot_kind(sh), "wipe": sh.get("wipe") or None,
+                         "coverage": (lambda c: None if c is None else round(c, 2))(coverage(sh)),
                          "label": source_label(sh), "headline": sh.get("headline", "")})
             t += n
         with open(path, "w", encoding="utf-8") as f:
@@ -540,7 +585,11 @@ class Build:
         parts = [reel_audio.pad_audio(self.timeline[i].get("audio"), self.timeline[i]["dur"],
                                       os.path.join(folder, f"scene{i}_audio.wav")) for i in indices]
         total = sum(self.timeline[i]["dur"] for i in indices)
-        norm = reel_audio.mix(parts, total, folder, self.man.get("music_bed", True))
+        # Sound accents: only those inside the beats being mixed, timed from
+        # the first of them (the hook alone starts at 0 too).
+        t0 = self.timeline[indices[0]]["start"] if indices else 0.0
+        cues = [(n, t - t0) for n, t, i in getattr(self, "cues", []) if i in indices]             if self.man.get("sfx", True) else []
+        norm = reel_audio.mix(parts, total, folder, self.man.get("music_bed", True), cues)
         return reel_audio.encode(norm, os.path.join(folder, "audio.m4a"))
 
     def mux(self, videos, frames, audio, ass, out):
@@ -706,6 +755,19 @@ def main():
             print(f"  {x['start']:6.2f}-{x['start'] + x['dur']:6.2f}s  {s.get('id')} "
                   f"[{s.get('material')}]: {s.get('headline', '')!r}")
         print("Hook beats: " + ", ".join(str(b.scenes[i].get("id")) for i in hook_indices(b.scenes)))
+        hook = set(hook_indices(b.scenes))
+        shots = []
+        for x in b.timeline:
+            sc = b.scenes[x["i"]]
+            exp = expand_shots(sc)
+            wts = [sh.get("weight", 1) for sh in exp]
+            for j, sh in enumerate(exp):
+                sh["_hook"] = x["i"] in hook
+                shots.append((x["i"], j, sh, x["dur"] * wts[j] / sum(wts), f"scene{x['i']}_{j}"))
+        rows, pace_warnings = pace_report(shots)
+        print_table(rows)
+        for w in pace_warnings:
+            print(f"WARNING: {w}", file=sys.stderr)
         return 1 if total > b.max_dur else 0
 
     b.check(need_tools=stage in ("narrate", "hook", "all"))
@@ -785,6 +847,7 @@ def main():
         out, ass, total = b.assemble(everything, b.work, b.out, plan)
 
     ok = self_check(out, total, b.max_dur, b.work)
+    print_table(b.pace_rows)
     print("Shots:")
     for x in b.timeline:
         s = b.scenes[x["i"]]
