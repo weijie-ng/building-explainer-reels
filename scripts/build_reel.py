@@ -114,7 +114,7 @@ Scene types:
   revealed one at a time. About 3 events fit per shot; use "shots" for more.
 - end_card: "headline" (e.g. "CHECK BEFORE YOU SHARE"), "pointer":
   {"outlet", "image", "captured"} (a screenshot of a referenced article
-  page: outlet name, headline, byline; "captured" is the capture date,
+  page: outlet name, headline, byline if shown; "captured" is the capture date,
   printed under it when the screenshot has no absolute date). {"outlet", "headline",
   "no_screenshot": "<why>"} is the last-resort fallback; never a fake poster.
   Also

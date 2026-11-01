@@ -168,7 +168,8 @@ def validate(scenes, args, man=None):
         elif isinstance(p, dict) and not p.get("image") and not p.get("no_screenshot"):
             errors.append(f"scene {sid}: end-card pointer needs 'image', a screenshot of a referenced "
                           "article page. A headline-only pointer needs 'no_screenshot' giving why "
-                          "no referenced article could be captured.")
+                          "no referenced article could be captured (page blocked, or no browser that can "
+                          "save a screenshot and the user didn't supply one).")
         if "keep" in s:
             k = s["keep"]
             if not (isinstance(k, list) and len(k) == 4 and all(0 <= v <= 1 for v in k)
