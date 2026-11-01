@@ -4,10 +4,9 @@ Check that the summary card and the end card stay on screen long enough to
 read, measured on the rendered reel.
 
 The summary card brings its panels in one after another. If the shot is
-short, the card cuts away just as the last panel lands: PHP2Shell v2 built
-five panels over 1.75s of a 2.2s shot, so the finished card was readable
-for 0.4s while the end card after it held 2.9s. The build plans against
-this (SKILL.md, "End card"); this script measures what actually rendered.
+short, the card cuts away just as the last panel lands, so the finished card
+is never seen. The build plans against this (SKILL.md, "End card"); this
+script measures what actually rendered.
 
 For each summary shot in the shot list, it finds the last panel landing:
 the last sudden jump between consecutive frames below the caption band (so

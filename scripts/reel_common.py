@@ -48,8 +48,8 @@ TAIL = 0.15                  # pause after each scene's narration (s)
 CREEP_SCALE = 0.02           # slow creep: at most 102% scale over a shot
 CREEP_UP_PX = 5              # drift-up creep speed (px per second)
 # Summary card and end card (SKILL.md, "End card"): the finished card must
-# stay on screen long enough to read, or to screenshot. PHP2Shell v2 brought
-# five panels in over 1.75s of a 2.2s shot, so the whole card showed for 0.4s.
+# stay on screen long enough to read, or to screenshot. A panel that lands just
+# before the cut is never seen.
 SUMMARY_STAGGER = 0.35       # s between panels, at most...
 SUMMARY_BUILD_SHARE = 0.4    # ...and every panel is in by this share of the shot
 SUMMARY_HOLD_MIN = 1.5       # the finished card holds at least this long (s)...
