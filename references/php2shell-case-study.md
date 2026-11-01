@@ -47,5 +47,7 @@ Measured: still images held about 82% of the non-end time; video clips 0; built 
 
 v2 fixed the slideshow problems, but the user's review flagged a new one. The reel went straight from "25 Palo Alto firewalls taken over" to "Tenable tested 5 vulnerable sites online, and none was hacked". With nothing explaining the switch, the viewer can't tell whether the flaw is dangerous or broken, and the second fact seems to cancel the first. Both facts were sourced and in the right order. What was missing was the reason both were true, said at the turn. Now there's "Bridge every contrast" in SKILL.md's Story shape, a tensions table in facts.md, and a C16 and C17 FAIL for an unbridged contrast.
 
+How the fix plays here: the turn line names the difference between the two targets ("But on ordinary websites, the same attack failed") and gives whatever reason Tenable's write-up states. The turn shot's headline says "SAME ATTACK FAILS ON ORDINARY WEBSITES" rather than "0 OF 5 SITES HACKED", which against "25 FIREWALLS TAKEN OVER" reads as a contradiction with the sound off. A split of firewall and web server, or a wipe into the turn, carries it visually.
+
 The review offered a reason: appliances run identical firmware, so memory targets are predictable, while web servers' heap layouts vary. That goes in the reel only if Dream's or Tenable's write-up says so. Otherwise the bridge says only what the sources do say about why the attack failed, or that no source gives a reason.
 
