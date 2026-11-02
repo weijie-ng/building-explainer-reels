@@ -25,7 +25,8 @@ without rebuilding the rest:
            <workdir>/diagram_brief/. Set diagram.motion_clip to the result.
   narrate  TTS or supplied audio, silence trim, Whisper word timing ->
            sceneN.wav, timeline.json. Stops if what Whisper hears doesn't match
-           the script word for word. Cached per beat: unchanged narration is
+           the script word for word (a name off by a letter or a missed
+           first word only warns; see reel_subs.match_words). Cached per beat: unchanged narration is
            not re-spoken or re-transcribed.
   hook     the hook's beats only (leading beats whose id starts with "hook",
            or the first beat): narration, shots, captions, audio ->
@@ -197,7 +198,8 @@ wins):
 - No status tags: a scene with "label" or "label_color" is rejected.
 - Caption timing: Whisper word timestamps from each beat's own narration
   audio, with split figure tokens merged back ("$6" + ".3" -> "$6.3", "94" +
-  "%" -> "94%"); every beat must match its script word for word. Never
+  "%" -> "94%"); every beat must match its script word for word, except
+  a mid-sentence name a letter off or a missed first word (warned). Never
   spaced evenly. caption_nudge shifts only the words it names. Diagram nodes
   use the same word times.
 - Captions: one short phrase at a time (2-5 words, at most 2 lines at 38px
@@ -362,6 +364,8 @@ class Build:
             with open(cache, encoding="utf-8") as f:
                 c = json.load(f)
             if c.get("key") == ckey:
+                for n in c.get("notes", []):
+                    print(f"WARNING: beat {s.get('id')}: {n}", file=sys.stderr)
                 return c["starts"]
         except (OSError, ValueError):
             pass
@@ -370,15 +374,18 @@ class Build:
         if tokens is None:
             sys.exit("No Whisper package: pip install faster-whisper (captions are timed "
                      "from the voice).")
+        notes = []
         try:
-            starts = match_words(narration, tokens)
+            starts = match_words(narration, tokens, notes)
         except ValueError as e:
             sys.exit(f"beat {s.get('id')}: the narration audio doesn't match the script: {e}\n"
                      "Listen to it: if the voice dropped or changed a word, re-run narrate "
                      "(--force); if the script spells a figure differently from how it is "
                      "said, write it the way it is said.")
+        for n in notes:
+            print(f"WARNING: beat {s.get('id')}: {n}", file=sys.stderr)
         with open(cache, "w", encoding="utf-8") as f:
-            json.dump({"key": ckey, "starts": starts}, f)
+            json.dump({"key": ckey, "starts": starts, "notes": notes}, f)
         return starts
 
     def beat_word_times(self, i):

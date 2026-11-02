@@ -177,31 +177,66 @@ def norm_word(w):
     return re.sub(r"[^a-z0-9]", "", w)
 
 
-def match_words(script, tokens):
+def edit_distance(a, b):
+    """Levenshtein distance between two strings."""
+    prev = list(range(len(b) + 1))
+    for x, ca in enumerate(a, 1):
+        cur = [x]
+        for y, cb in enumerate(b, 1):
+            cur.append(min(prev[y] + 1, cur[y - 1] + 1, prev[y - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+# Seconds per letter, for placing a word the recogniser missed at the very
+# start of a beat (it ends where the first heard word begins).
+SEC_PER_LETTER = 0.07
+
+
+def match_words(script, tokens, notes=None):
     """Start time of every script word, from Whisper tokens.
 
     Split figure tokens are merged back first ("$6" + ".3" -> "$6.3",
     "94" + "%" -> "94%"): tokens are joined until they spell the script
     word. A token that spells several script words ("can't" style
     contractions, hyphenated words) gives them times spread over the token
-    by length. Raises ValueError at the first word that doesn't match,
-    because a caption must show exactly what was said."""
+    by length.
+
+    Two recogniser slips are tolerated, because the voice said the word
+    and only Whisper got it wrong; each is recorded in `notes` (a list)
+    for the listen-through:
+    - a name spelled slightly differently: a capitalised word in mid
+      sentence, 4+ letters, within 1 letter edit (2 for 8+ letters) of
+      what was heard ("Pati" heard as "Patti", "Nakamoto" as "Nakomoto");
+    - the first spoken word of the beat missed entirely, when the rest
+      lines up ("Then fuel..." heard as "fuel..."). Whisper often drops the
+      opening word of a clip that starts right on speech. It is placed
+      just before the first heard word.
+    Anything else raises ValueError at the first word that doesn't match,
+    because a caption must show exactly what was said: a dropped or
+    changed word mid-beat, a changed common word, a second missed word,
+    extra words."""
     words = script.split()
     toks = [(s, e, norm_word(t), t) for s, e, t in tokens if norm_word(t)]
     starts, i, j = [None] * len(words), 0, 0
+    first = next((k for k, w in enumerate(words) if norm_word(w)), None)
+    skipped = False
+    notes = notes if notes is not None else []
 
     def context(k, seq, n=4):
         return " ".join(seq[max(0, k - n):k + n])
 
-    while i < len(words):
-        a = norm_word(words[i])
-        if not a:                         # a lone dash or symbol: not spoken
-            i += 1
-            continue
-        if j >= len(toks):
-            raise ValueError(f"word {i + 1} {words[i]!r} was never heard "
-                             f"(script: ...{context(i, words)}...)")
-        si, sj, A, B = [i], [j], a, toks[j][2]
+    def is_name(k):
+        w = words[k].lstrip("\"'“‘(")
+        if not w[:1].isupper() or not norm_word(w).isalpha() or len(norm_word(w)) < 4:
+            return False
+        prev = words[k - 1].rstrip("\"'”’)") if k else ""
+        return bool(prev) and not prev.endswith((".", "!", "?", ":"))
+
+    def span(i, j):
+        """(script indices, token indices) of the exact match starting at
+        script word i and token j, or None."""
+        si, sj, A, B = [i], [j], norm_word(words[i]), toks[j][2]
         while A != B:
             if A.startswith(B) and j + 1 < len(toks):
                 j += 1
@@ -213,10 +248,56 @@ def match_words(script, tokens):
                     si.append(i)
                     A += norm_word(words[i])
             else:
-                heard = " ".join(t[3] for t in toks[max(0, sj[0] - 3):sj[-1] + 4])
-                raise ValueError(f"word {si[0] + 1} {words[si[0]]!r} doesn't match what was "
-                                 f"heard (script: ...{context(si[0], words)}...; "
-                                 f"heard: ...{heard}...)")
+                return None
+        return si, sj
+
+    def near_name(i, j):
+        """Token indices (1-3 joined tokens) that spell name i within the
+        allowed edit distance, or None."""
+        if not is_name(i):
+            return None
+        a = norm_word(words[i])
+        limit = 1 if len(a) < 8 else 2
+        B = ""
+        for k in range(j, min(j + 3, len(toks))):
+            B += toks[k][2]
+            if edit_distance(a, B) <= limit:
+                return list(range(j, k + 1))
+        return None
+
+    while i < len(words):
+        a = norm_word(words[i])
+        if not a:                         # a lone dash or symbol: not spoken
+            i += 1
+            continue
+        if j >= len(toks):
+            raise ValueError(f"word {i + 1} {words[i]!r} was never heard "
+                             f"(script: ...{context(i, words)}...)")
+        m = span(i, j)
+        if m is None:
+            sj = near_name(i, j)
+            if sj:
+                m = [i], sj
+                notes.append(f"name {words[i]!r} heard as "
+                             f"{' '.join(toks[k][3] for k in sj)!r}; captioned as written")
+        if m is None and i == first and not skipped:
+            nxt = next((k for k in range(i + 1, len(words)) if norm_word(words[k])), None)
+            if nxt is not None and (span(nxt, j) or near_name(nxt, j)):
+                skipped = True
+                starts[i] = max(0.0, toks[j][0] - SEC_PER_LETTER * len(a))
+                notes.append(f"first word {words[i]!r} not heard by Whisper; placed at "
+                             f"{starts[i]:.2f}s, just before {toks[j][3]!r}. Check by ear "
+                             "that the voice says it")
+                i = nxt
+                continue
+        if m is None:
+            heard = " ".join(t[3] for t in toks[max(0, j - 3):j + 4])
+            raise ValueError(f"word {i + 1} {words[i]!r} doesn't match what was "
+                             f"heard (script: ...{context(i, words)}...; "
+                             f"heard: ...{heard}...)")
+        si, sj = m
+        i = si[-1]
+        j = sj[-1]
         t0, t1 = toks[sj[0]][0], toks[sj[-1]][1]
         total = sum(len(norm_word(words[k])) for k in si) or 1
         acc = 0
