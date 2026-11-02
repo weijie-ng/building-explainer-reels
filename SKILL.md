@@ -491,6 +491,8 @@ The builder never certifies its own reel. After every build, hand verification t
 
 Do not give it your own assessment, the known issues, or what you expect it to find; a primed verifier tends to confirm what it is told.
 
+**Run it in parallel.** Split the checklist into the four non-overlapping lanes in checklist section G and start one fresh verifier per lane at the same time. Everything below applies to each lane verifier; the gate rules apply to the merged report.
+
 **The verifier must:**
 1. Work from the files it was given; it does not download assets or capture screenshots, and needs no live browser. It may use web search and page-text fetches to check for related images (D4). Run every measurement in the checklist itself on the rendered file (not the planned timeline), extract the contact sheets and per-shot strips, and look at them.
 2. Mark each checklist item in its scope (every item in round 1) PASS or FAIL, with evidence: a measured value, a timestamp, or a frame path. "Looks fine" is not evidence.

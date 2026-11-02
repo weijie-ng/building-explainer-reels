@@ -9,6 +9,7 @@ Every item is PASS or FAIL with evidence (a measured value, a timestamp, or a fr
 - D. Visual items
 - E. Report format
 - F. Re-verification scope (rounds 2 and 3)
+- G. Splitting the checklist across parallel verifiers
 
 ## A. Measurement commands
 
@@ -190,4 +191,22 @@ When unsure whether a change touches an item, include the item. A missed item co
 **3. Hand-over.** Give the new verifier the usual inputs, plus the list of item IDs to run and the shot IDs that per-shot items cover. Do not tell it what was fixed, why, or what the earlier reports said. It runs those items in full, using the same commands and standards as round 1, and reports only those.
 
 **4. Combined report.** The builder joins the new report with the latest result of every other item, marking each carried result "carried from round N". The builder copies results as the verifiers reported them and does not change any of them. VERDICT is PASS only if every item in the combined table is PASS. Deliver the combined table, with each verifier's own report attached.
+
+## G. Splitting the checklist across parallel verifiers
+
+Run the checklist as four fresh verifiers at once, each with its own items (no item in two lanes), so each one finishes sooner and gives every item its full attention:
+
+| Lane | Items |
+|------|-------|
+| 1. Technical and motion | B1–B10 |
+| 2. Script and sources | C1, C2, C4, C5, C6, C10–C13, C15–C17 |
+| 3. On-screen frames | C3, C7–C9, D1–D3, D5–D11 |
+| 4. Assets and watchability | C14, D4, D12 |
+
+Each gets the usual inputs plus its item IDs, writes to its own folder (`OUT/lane1/` …), and reports only its items in the section E format. The builder joins the reports into one table without changing any result. In rounds 2 and 3, start only the lanes that have scoped items. If the platform can't run agents in parallel, run the lanes one after another, or all items in one verifier.
+
+**Examples.**
+- *Round 1 hand-over to lane 2:* "Verify reel `out/reel.mp4` against `references/verification-checklist.md`. Inputs: manifest `work/manifest.json`, `work/facts.md`, assets `work/assets/`, workdir `work/`. Run only items C1, C2, C4, C5, C6, C10–C13, C15–C17. Write frames and your report to `verify/round1/lane2/`." Lanes 1, 3 and 4 get the same message with their own items and folder, all sent at once.
+- *Round 2, only one shot's crop was changed (round 1 failed only D2):* section F scopes the every-round items (B items in lane 1, D12's measured part in lane 4), B8 strips for the shot (lane 1), and D1, D2, D3 for the shot (lane 3). Start lanes 1, 3 and 4; lane 2 has no items, so its results are carried from round 1.
+- *Round 2, an AI shot swapped for a real clip:* the scope covers C3, C8, C10, D2, D3, D5, D11 (lanes 2 and 3), D4 and D12 in full (lane 4), and the every-round items (lane 1). All four lanes run.
 
