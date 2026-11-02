@@ -105,10 +105,8 @@ def header_bottom(scene):
                       for p in card["headline"].split("\n"))
         return y + (28 if card.get("image") and card.get("image_source") else 0)
     if scene.get("summary"):
-        sm = scene["summary"]
         d = ImageDraw.Draw(Image.new("RGB", (W, H)))
-        title = sm.get("title") or scene.get("headline") or "KEY FACTS"
-        return SAFE_TOP + 62 * len(wrap(d, title, font(BOLD, 52), HEADLINE_WRAP))
+        return SAFE_TOP + 62 * len(wrap(d, summary_title(scene), font(BOLD, 52), HEADLINE_WRAP))
     return text_layer(scene)[1]
 
 
@@ -599,25 +597,49 @@ def render_timeline(scene, dur):
     return [(frame(k), layer, (k - 1) * step) for k in range(1, len(events) + 1)]
 
 
-def render_end_card(scene, warnings):
+def pointer_image(p, max_h):
+    """The pointer screenshot scaled to fit 640 x max_h (never upscaled);
+    transparent areas go white, not black."""
+    from PIL import Image
+    raw = Image.open(p["image"]).convert("RGBA")
+    img = Image.new("RGB", raw.size, WHITE)
+    img.paste(raw, (0, 0), raw)
+    img.thumbnail((640, max_h), Image.LANCZOS)
+    return img
+
+
+def pointer_height(scene, max_h):
+    """Height draw_pointer will take, from the top of the screenshot (or
+    fallback panel) to the bottom of the disclosure line."""
     from PIL import Image, ImageDraw
-    im = Image.new("RGB", (W, H), BG)
-    d = ImageDraw.Draw(im)
-    y = draw_headline(d, SAFE_TOP, scene.get("headline", "CHECK BEFORE YOU SHARE"),
-                      scene.get("yellow_words"), size=HEADLINE_SIZE)
+    d = ImageDraw.Draw(Image.new("RGB", (W, H)))
+    p = scene.get("pointer") or {}
+    h = 0
+    if p.get("image"):
+        h += pointer_image(p, max_h).height + 12 + (26 if p.get("captured") else 0) + 16 + 40
+    elif p:
+        h += 60 + len(wrap(d, p["headline"], font(BOLD, 38), 600)) * 46 + 50 + 24 + 40
+    if scene.get("disclosure"):
+        h += 30 + 24 * len(wrap(d, scene["disclosure"], font(REG, 17), 640))
+    return h
+
+
+def draw_pointer(im, d, scene, y, max_h, warnings, wide=False):
+    """The pointer to the full story (a screenshot of the article page, or
+    the last-resort headline panel), its "READ THE FULL STORY" line and the
+    disclosure line under it, from y down. Returns the y below them.
+    wide: the space is a short strip (the end card with summary panels), so
+    a screenshot that isn't a wide strip comes out too small to read."""
     p = scene.get("pointer")
     if p and p.get("image"):
         # A screenshot of the article itself (headline and byline), shown
-        # whole within 640x420 (never upscaled), with a thin white frame.
-        y += 40
-        raw = Image.open(p["image"]).convert("RGBA")
-        shot_img = Image.new("RGB", raw.size, WHITE)       # transparent areas go white, not black
-        shot_img.paste(raw, (0, 0), raw)
-        shot_img.thumbnail((640, 420), Image.LANCZOS)
-        if shot_img.width < 480 and shot_img.height < 420:
+        # whole with a thin white frame.
+        shot_img = pointer_image(p, max_h)
+        if shot_img.width < 480 and (wide or shot_img.height < max_h):
             warnings.append(f"scene {scene.get('id')}: end-card screenshot is only "
                             f"{shot_img.width}x{shot_img.height}px on screen; recapture it larger "
-                            "(about 1000px wide) so its text is readable.")
+                            "and wider (outlet, headline and byline as a strip about 1000px wide) "
+                            "so its text is readable.")
         x0 = (W - shot_img.width) // 2
         d.rectangle([x0 - 4, y - 4, x0 + shot_img.width + 3, y + shot_img.height + 3], fill=WHITE)
         im.paste(shot_img, (x0, y))
@@ -630,7 +652,6 @@ def render_end_card(scene, warnings):
         d.text((40, y), f"READ THE FULL STORY — {p['outlet']}", font=font(BOLD, 26), fill=YELLOW)
         y += 40
     elif p:
-        y += 40
         f_out, f_head = font(MONO_BOLD, 22), font(BOLD, 38)
         lines = wrap(d, p["headline"], f_head, 600)
         h = 60 + len(lines) * 46 + 50
@@ -644,14 +665,25 @@ def render_end_card(scene, warnings):
         d.text((40, y), f"READ THE FULL STORY — {p['outlet']}", font=font(BOLD, 26), fill=YELLOW)
         y += 40
     if scene.get("disclosure"):
-        # Small and muted, directly under the pointer. The end card carries no
-        # captions, so nothing caption-like competes with the pointer.
+        # Small and muted, directly under the pointer.
         f = font(REG, 17)
         yy = y + 30
         for line in wrap(d, scene["disclosure"], f, 640):
             d.text((40, yy), line, font=f, fill=SOURCE_TEXT)
             yy += 24
         y = yy
+    return y
+
+
+def render_end_card(scene, warnings):
+    """The end card without summary panels: closing line, pointer and
+    disclosure line, and no captions, so nothing competes with the pointer."""
+    from PIL import Image, ImageDraw
+    im = Image.new("RGB", (W, H), BG)
+    d = ImageDraw.Draw(im)
+    y = draw_headline(d, SAFE_TOP, scene.get("headline", "CHECK BEFORE YOU SHARE"),
+                      scene.get("yellow_words"), size=HEADLINE_SIZE)
+    y = draw_pointer(im, d, scene, y + 40, 420, warnings)
     if y > KEEP_BOTTOM:
         warnings.append(f"scene {scene.get('id')}: end card runs to y={y}, into the bottom "
                         f"safe area (below {KEEP_BOTTOM}); shorten the disclosure or the closing line.")
@@ -671,13 +703,29 @@ def fit_lines(d, text, path, size, min_size, max_w, max_h, gap=1.18):
     return None
 
 
+def captioned(sh):
+    """Whether a shot carries captions: every shot but an end card without
+    summary panels, where nothing competes with the pointer. With panels, the
+    loop-back narration is long and the panels need it, so it stays captioned."""
+    return not (sh.get("end_card") and not sh.get("summary"))
+
+
+def summary_title(scene):
+    """The top line of the end card: its closing line."""
+    return scene.get("headline") or "CHECK BEFORE YOU SHARE"
+
+
+def half_panel(p):
+    """A plain figure or a donut sits two to a row; a proportion bar, a
+    compare chart and a distinction each take a full row."""
+    return "value" in p and "bar" not in p and "compare" not in p
+
+
 def summary_rows(panels):
-    """Figures go two to a row when there are three or more; a distinction
-    always takes a full row."""
-    two_up = sum(1 for p in panels if "value" in p) >= 3
+    """Figures and donuts go two to a row; every other panel takes a full row."""
     rows, pend = [], []
     for p in panels:
-        if "value" in p and two_up:
+        if half_panel(p):
             pend.append(p)
             if len(pend) == 2:
                 rows.append(pend)
@@ -692,36 +740,72 @@ def summary_rows(panels):
     return rows
 
 
-def render_summary(scene, dur, warnings):
-    """Summary card: the reel's key figures and distinctions as one
-    infographic on the background blue, readable at a glance and in a
-    screenshot: large values, equal panels, fixed margins, no clipped text.
-    Panels appear one after another (SUMMARY_STAGGER apart, tighter in a short
-    shot so all are in by SUMMARY_BUILD_SHARE of it), then the card holds.
+def card_rows(scene):
+    """The summary panels of a shot, in rows as the card lays them out."""
+    return summary_rows(scene["summary"].get("panels", []))
 
-    summary: {"title": "THE KEY NUMBERS", "panels": [...], "sources": "..."}
+
+CHART_FILL_STEPS = 4         # a chart panel's fill grows in this many steps as it lands
+TRACK = (52, 86, 160)        # the unfilled part of a bar or ring, lighter than PANEL
+
+
+def is_chart(p):
+    return any(k in p for k in ("bar", "compare", "donut"))
+
+
+END_SUMMARY_ROWS = 2         # rows of panels that fit on the end card above the pointer
+END_POINTER_MIN = 150        # px: the pointer screenshot's least height on that card
+END_POINTER_MAX = 260
+
+
+def end_summary_layout(scene, top):
+    """Row height and pointer height for the end card with summary panels:
+    the panels take up to 150px a row, the pointer what is left (150-260px).
+    Raises when they don't fit above the bottom safe area."""
+    sid = scene.get("id")
+    rows = card_rows(scene)
+    if len(rows) > END_SUMMARY_ROWS:
+        raise RuntimeError(f"beat {sid}: the end card has {len(rows)} rows of summary panels; "
+                           f"{END_SUMMARY_ROWS} fit above the pointer (up to 4 figures, or 2 "
+                           "figures and one distinction). Cut panels.")
+    gap = 12
+    for row_h in range(150, 119, -2):
+        panels_h = len(rows) * row_h + gap * (len(rows) - 1) + 24
+        for ph in range(END_POINTER_MAX, END_POINTER_MIN - 1, -10):
+            if top + panels_h + pointer_height(scene, ph) <= KEEP_BOTTOM:
+                return row_h, ph
+    raise RuntimeError(f"beat {sid}: the summary panels, pointer and disclosure line don't fit "
+                       f"on the end card above y={KEEP_BOTTOM}. Cut a row of panels, shorten "
+                       "the disclosure line or the closing line, or capture the pointer as a "
+                       "wider strip.")
+
+
+def render_summary(scene, dur, warnings):
+    """The end card with summary panels ("end_card": true with "summary"):
+    the closing line on top, the captions under it, the reel's key figures
+    and distinctions (at most two rows), then the pointer and disclosure line,
+    on the background blue. Readable at a glance and in a screenshot: equal
+    panels, fixed margins, no clipped text. The pointer and disclosure line
+    are there from the first frame; the panels appear one after another
+    (SUMMARY_STAGGER apart, tighter in a short shot so all are in by
+    SUMMARY_BUILD_SHARE of it), then the card holds.
+
+    summary: {"panels": [...]}
     A panel is a figure {"value": "$6.3B", "label": "...", "source": "..."}
     or a distinction {"pair": [{"title": "REAL", "text": "..."},
     {"title": "FALSE", "text": "..."}]}."""
     from PIL import Image, ImageDraw
-    sm = scene["summary"]
     sid = scene.get("id")
     base = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(base)
-    y = draw_headline(d, SAFE_TOP, sm.get("title") or scene.get("headline") or "KEY FACTS",
-                      sm.get("yellow_words", scene.get("yellow_words")), size=HEADLINE_SIZE)
-    f_foot = font(REG, 18)
-    foot_lines = [ln for t in (sm.get("sources"), scene.get("disclosure")) if t
-                  for ln in wrap(d, t, f_foot, W - 80)]
-    # Panels start below the caption band; the footer ends at the bottom safe area.
-    bottom = KEEP_BOTTOM - len(foot_lines) * 26 - (16 if foot_lines else 0)
-    rows = summary_rows(sm.get("panels", []))
-    gap, margin, pad = 16, 40, 20
+    y = draw_headline(d, SAFE_TOP, summary_title(scene), scene.get("yellow_words"),
+                      size=HEADLINE_SIZE)
+    rows = card_rows(scene)
     top = max(y + 24, content_top(scene))
-    row_h = min(230, (bottom - top - gap * (len(rows) - 1)) / max(len(rows), 1))
-    if row_h < 120:
-        raise RuntimeError(f"beat {sid}: summary card has {len(rows)} rows of panels; at most "
-                           f"{int((bottom - top + gap) // (120 + gap))} fit. Cut panels.")
+    gap, margin, pad = 12, 40, 14
+    row_h, ptr_h = end_summary_layout(scene, top)
+    panels_bottom = top + len(rows) * row_h + gap * (len(rows) - 1)
+    draw_pointer(base, d, scene, panels_bottom + 24, ptr_h, warnings, wide=True)
     boxes = []
     for r, row in enumerate(rows):
         ry = top + r * (row_h + gap)
@@ -731,8 +815,10 @@ def render_summary(scene, dur, warnings):
             boxes.append((x0, ry, x0 + cw, ry + row_h, p))
     # Every panel uses the same type sizes: the largest that fits the
     # fullest panel (first pass measures on a scratch image, second draws).
-    defaults = {"value": (72, 34), "label": (26, 17), "title": (34, 20), "body": (26, 17)}
+    defaults = {"value": (72, 34), "label": (26, 17), "title": (34, 20), "body": (26, 17),
+                "ring": (30, 14), "side": (24, 15), "name": (22, 15), "amount": (26, 16)}
     cap = {role: hi for role, (hi, _) in defaults.items()}
+    src_size = 15
 
     def fit(dd, role, text, path, max_w, max_h, fixed):
         hi, lo = defaults[role]
@@ -742,15 +828,138 @@ def render_summary(scene, dur, warnings):
             cap[role] = min(cap[role], r[0].size)
         return r
 
-    def panel(dd, box, fixed):
+    def source(dd, p, x, x1, y1, max_w, right=None):
+        """The panel's source line at the bottom, shrunk (never clipped) to max_w."""
+        if not p.get("source"):
+            return
+        r = fit_lines(dd, p["source"], MONO, src_size, 12, max_w, src_size * 1.3)
+        if not r:
+            raise RuntimeError(f"beat {sid}: summary source {p['source']!r} doesn't fit; "
+                               "shorten it.")
+        dd.text((x, y1 - pad - src_size - 2), r[1][0], font=r[0], fill=SOURCE_TEXT)
+        if right:
+            f = font(MONO, src_size)
+            dd.text((x1 - pad - dd.textlength(right, font=f), y1 - pad - src_size - 2),
+                    right, font=f, fill=SOURCE_TEXT)
+
+    def panel(dd, box, fixed, t=1.0):
         x0, y0, x1, y1, p = box
         dd.rounded_rectangle([x0, y0, x1, y1], radius=14, fill=PANEL)
         iw, ih = x1 - x0 - 2 * pad, y1 - y0 - 2 * pad
+        src_h = src_size + 8 if p.get("source") else 0
+        if "bar" in p:
+            # Proportion bar: the figure and its label on one line, then a bar
+            # from 0 to 100% filled to the share, then the source with "100%"
+            # at the bar's end so the scale is on screen.
+            v = fit(dd, "value", p["value"], BOLD, iw * 0.4, ih * 0.42, fixed)
+            if not v:
+                raise RuntimeError(f"beat {sid}: summary bar {p['value']!r} doesn't fit; "
+                                   "shorten its value.")
+            vw = max(dd.textlength(ln, font=v[0]) for ln in v[1])
+            line_h = v[2] * len(v[1])
+            lx = x0 + pad + vw + 14
+            lab = fit(dd, "side", p.get("label", ""), REG, x1 - pad - lx, line_h, fixed) \
+                if p.get("label") else (None, [], 0)
+            bar_h = 16
+            if not lab or line_h + 8 + bar_h + 6 + src_h > ih:
+                raise RuntimeError(f"beat {sid}: summary bar {p['value']!r} doesn't fit "
+                                   "without clipping; shorten its label.")
+            yy = y0 + pad
+            for ln in v[1]:
+                dd.text((x0 + pad, yy), ln, font=v[0], fill=YELLOW)
+                yy += v[2]
+            ly = y0 + pad + (line_h - lab[2] * len(lab[1])) / 2
+            for ln in lab[1]:
+                dd.text((lx, ly), ln, font=lab[0], fill=WHITE)
+                ly += lab[2]
+            by = y0 + pad + line_h + 8
+            bx0, bx1 = x0 + pad, x1 - pad
+            dd.rounded_rectangle([bx0, by, bx1, by + bar_h], radius=bar_h // 2, fill=TRACK)
+            share = max(0.0, min(1.0, float(p["bar"])))
+            fw = (bx1 - bx0) * share * t
+            if fw > 0:
+                # A tiny share still shows as a sliver, never as nothing.
+                dd.rounded_rectangle([bx0, by, bx0 + max(fw, 4), by + bar_h],
+                                     radius=bar_h // 2, fill=YELLOW)
+            source(dd, p, x0 + pad, x1, y1, iw * 0.7, right="100%")
+            return
+        if "compare" in p:
+            # Compare bars: two or three amounts in one unit on one scale that
+            # starts at zero, each with its name on the left and its figure at
+            # the bar's end.
+            items = p["compare"]
+            rh = (ih - src_h) / len(items)
+            names = []
+            for it in items:
+                r = fit(dd, "name", it.get("label", ""), REG, 200, rh, fixed)
+                if not r or len(r[1]) > 1:
+                    raise RuntimeError(f"beat {sid}: compare label {it.get('label')!r} doesn't "
+                                       "fit on one line; shorten it.")
+                names.append(r)
+            f_name = names[0][0]
+            nx = x0 + pad + max(dd.textlength(r[1][0], font=f_name) for r in names) + 14
+            amts = []
+            for it in items:
+                r = fit(dd, "amount", it.get("value", ""), BOLD, 150, rh, fixed)
+                if not r:
+                    raise RuntimeError(f"beat {sid}: compare value {it.get('value')!r} doesn't "
+                                       "fit; shorten it.")
+                amts.append(r)
+            vw = max(dd.textlength(r[1][0], font=r[0]) for r in amts) + 10
+            span = x1 - pad - vw - nx
+            top_amt = max(float(it["amount"]) for it in items) or 1.0
+            bar_h = max(10, min(22, rh * 0.55))
+            for k, (it, nm, am) in enumerate(zip(items, names, amts)):
+                cy = y0 + pad + rh * k + rh / 2
+                dd.text((x0 + pad, cy - nm[2] / 2), nm[1][0], font=nm[0], fill=WHITE)
+                w = span * float(it["amount"]) / top_amt * t
+                dd.rounded_rectangle([nx, cy - bar_h / 2, nx + span, cy + bar_h / 2],
+                                     radius=4, fill=TRACK)
+                if w > 0:
+                    dd.rounded_rectangle([nx, cy - bar_h / 2, nx + max(w, 4), cy + bar_h / 2],
+                                         radius=4, fill=YELLOW if k == 0 else WHITE)
+                dd.text((nx + span + 10, cy - am[2] / 2), am[1][0], font=am[0], fill=YELLOW)
+            source(dd, p, x0 + pad, x1, y1, iw)
+            return
+        if "donut" in p:
+            # Donut: one share as a ring filled clockwise from the top, the
+            # figure in its middle, the label beside it, the source along the
+            # bottom as on every panel.
+            avail = ih - src_h
+            dia = min(avail, 100)
+            rx0, ry0 = x0 + pad, y0 + pad + (avail - dia) / 2
+            ring = max(10, dia * 0.15)
+            dd.ellipse([rx0, ry0, rx0 + dia, ry0 + dia], outline=TRACK, width=int(ring))
+            share = max(0.0, min(1.0, float(p["donut"])))
+            if share * t > 0:
+                dd.arc([rx0, ry0, rx0 + dia, ry0 + dia], -90, -90 + 360 * share * t,
+                       fill=YELLOW, width=int(ring))
+            inner = dia - 2 * ring
+            v = fit(dd, "ring", p["value"], BOLD, inner * 0.85, inner * 0.6, fixed)
+            if not v or len(v[1]) > 1:
+                raise RuntimeError(f"beat {sid}: donut value {p['value']!r} doesn't fit "
+                                   "inside the ring; shorten it.")
+            tw = dd.textlength(v[1][0], font=v[0])
+            dd.text((rx0 + dia / 2 - tw / 2, ry0 + dia / 2 - v[0].size * 0.62), v[1][0],
+                    font=v[0], fill=YELLOW)
+            sx = rx0 + dia + 14
+            sw = x1 - pad - sx
+            lab = fit(dd, "side", p.get("label", ""), REG, sw, avail, fixed) \
+                if p.get("label") else (None, [], 0)
+            if not lab:
+                raise RuntimeError(f"beat {sid}: donut label {p.get('label')!r} doesn't fit "
+                                   "beside the ring; shorten it.")
+            yy = y0 + pad + (avail - lab[2] * len(lab[1])) / 2
+            for ln in lab[1]:
+                dd.text((sx, yy), ln, font=lab[0], fill=WHITE)
+                yy += lab[2]
+            source(dd, p, x0 + pad, x1, y1, iw)
+            return
         if "value" in p:
-            src_h = 26 if p.get("source") else 0
-            v = fit(dd, "value", p["value"], BOLD, iw, ih * 0.5, fixed)
+            src_h = src_size + 8 if p.get("source") else 0
+            v = fit(dd, "value", p["value"], BOLD, iw, ih * 0.42, fixed)
             used = v[2] * len(v[1]) if v else 0
-            lab = fit(dd, "label", p.get("label", ""), REG, iw, ih - used - src_h - 8, fixed) \
+            lab = fit(dd, "label", p.get("label", ""), REG, iw, ih - used - src_h - 6, fixed) \
                 if p.get("label") else (None, [], 0)
             if not v or not lab:
                 raise RuntimeError(f"beat {sid}: summary panel {p.get('value')!r} doesn't fit "
@@ -759,12 +968,13 @@ def render_summary(scene, dur, warnings):
             for ln in v[1]:
                 dd.text((x0 + pad, yy), ln, font=v[0], fill=YELLOW)
                 yy += v[2]
-            yy += 8
+            yy += 6
             for ln in lab[1]:
                 dd.text((x0 + pad, yy), ln, font=lab[0], fill=WHITE)
                 yy += lab[2]
             if p.get("source"):
-                dd.text((x0 + pad, y1 - pad - 18), p["source"], font=font(MONO, 16), fill=SOURCE_TEXT)
+                dd.text((x0 + pad, y1 - pad - src_size - 2), p["source"],
+                        font=font(MONO, src_size), fill=SOURCE_TEXT)
             return
         hw = (x1 - x0 - gap) / 2
         for h, half in enumerate(p["pair"][:2]):
@@ -791,27 +1001,31 @@ def render_summary(scene, dur, warnings):
     for box in boxes:
         panel(scratch, box, fixed=False)
     stages = [(base.copy(), None, 0.0)]
+    grow = [(base.copy(), None, 0.0)]       # the same, with charts filling in
     for k, box in enumerate(boxes):
+        if is_chart(box[4]):
+            # A chart fills over its own slot, ending as the panel lands, so
+            # the finished card's hold is unchanged.
+            for j in range(1, CHART_FILL_STEPS):
+                panel(d, box, fixed=True, t=j / CHART_FILL_STEPS)
+                grow.append((base.copy(), None, step * (k + j / CHART_FILL_STEPS)))
         panel(d, box, fixed=True)
         stages.append((base.copy(), None, step * (k + 1)))
+        grow.append(stages[-1])
     stages_all = len(boxes)
-    yy = bottom + 16
-    for ln in foot_lines:
-        d.text((40, yy), ln, font=f_foot, fill=SOURCE_TEXT)
-        yy += 26
-    stages[-1] = (base.copy(), None, stages[-1][2])   # the finished card carries the footer
     # A shot that continues the same summary starts with the panels the
     # previous shot ended with already shown.
     shown = min(int(scene.get("_summary_shown", 0)), stages_all)
     if shown:
-        return [(stages[shown][0], None, 0.0)] +                [(stages[k][0], None, step * (k - shown)) for k in range(shown + 1, stages_all + 1)]
-    return stages
+        return [(stages[shown][0], None, 0.0)] + \
+               [(stages[k][0], None, step * (k - shown)) for k in range(shown + 1, stages_all + 1)]
+    return grow
 
 
 def summary_stagger(scene, dur):
     """Seconds between panels: SUMMARY_STAGGER, tightened so the last panel
     is in by SUMMARY_BUILD_SHARE of the shot and the finished card holds."""
-    n = sum(len(r) for r in summary_rows(scene["summary"].get("panels", [])))
+    n = sum(len(r) for r in card_rows(scene))
     todo = n - min(int(scene.get("_summary_shown", 0)), n)
     if todo <= 0:
         return SUMMARY_STAGGER
@@ -820,7 +1034,7 @@ def summary_stagger(scene, dur):
 
 def summary_hold(scene, dur):
     """(seconds the finished card is on screen, seconds it needs)."""
-    n = sum(len(r) for r in summary_rows(scene["summary"].get("panels", [])))
+    n = sum(len(r) for r in card_rows(scene))
     todo = n - min(int(scene.get("_summary_shown", 0)), n)
     held = frames_for(dur) / FPS - todo * summary_stagger(scene, dur)
     return held, max(SUMMARY_HOLD_MIN, SUMMARY_HOLD_PER_PANEL * n)
@@ -828,7 +1042,7 @@ def summary_hold(scene, dur):
 
 def summary_panels_shown(scene, dur):
     """Panels on screen at the summary shot's last frame."""
-    n = sum(len(r) for r in summary_rows(scene["summary"].get("panels", [])))
+    n = sum(len(r) for r in card_rows(scene))
     shown = min(int(scene.get("_summary_shown", 0)), n)
     last = (frames_for(dur) - 1) / FPS
     return min(n, shown + int(last / summary_stagger(scene, dur) + 1e-9))

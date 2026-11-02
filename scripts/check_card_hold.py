@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-Check that the summary card and the end card stay on screen long enough to
-read, measured on the rendered reel.
+Check that the end card stays on screen long enough to read, measured on
+the rendered reel.
 
-The summary card brings its panels in one after another. If the shot is
-short, the card cuts away just as the last panel lands, so the finished card
-is never seen. The build plans against this (SKILL.md, "End card"); this
-script measures what actually rendered.
+An end card with summary panels brings its panels in one after another. If
+the shot is short, the reel ends just as the last panel lands, so the
+finished card is never seen. The build plans against this (SKILL.md, "End
+card"); this script measures what actually rendered.
 
-For each summary shot in the shot list, it finds the last panel landing:
-the last sudden jump between consecutive frames below the caption band (so
-the word-by-word captions above don't count, and a slow creep never does).
-The hold is the time from that frame to the cut. For the end card, the
-hold is the shot's measured length.
+For an end card with panels ("summary" in the shot list), it finds the last
+panel landing: the last sudden jump between consecutive frames below the
+caption band (so the word-by-word captions above don't count, and a slow
+creep never does). The hold is the time from that frame to the end. For an
+end card without panels, the hold is the shot's measured length.
 
 Usage:
   python3 check_card_hold.py REEL.mp4 --shots WORKDIR/shot_list.json [--json out.json]
 
-PASS needs: summary hold >= max(SUMMARY_HOLD_MIN, SUMMARY_HOLD_PER_PANEL x
+PASS needs: panel hold >= max(SUMMARY_HOLD_MIN, SUMMARY_HOLD_PER_PANEL x
 panels); end card >= END_CARD_HOLD_MIN (constants in reel_common.py).
 Needs ffmpeg and numpy.
 """
@@ -79,7 +79,7 @@ def main():
             n = s.get("panels") or 0
             need = max(SUMMARY_HOLD_MIN, SUMMARY_HOLD_PER_PANEL * n)
             held = summary_hold(a.reel, s["start"], s["end"])
-            what = f"summary card, {n} panels"
+            what = f"end card, {n} summary panels"
         else:
             need, held, what = END_CARD_HOLD_MIN, s["end"] - s["start"], "end card"
         passed = held + 1 / FPS >= need
@@ -90,7 +90,7 @@ def main():
         print(f"{'PASS' if passed else 'FAIL'}  {where}: {what} readable for {held:.2f}s "
               f"(needs {need:.1f}s)")
     if not rows:
-        print("No summary card or end card in the shot list; nothing to check.")
+        print("No end card in the shot list; nothing to check.")
     if a.json:
         with open(a.json, "w", encoding="utf-8") as fh:
             json.dump({"pass": ok, "shots": rows}, fh, indent=1)

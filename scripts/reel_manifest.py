@@ -84,6 +84,102 @@ def loop_back_problem(scenes):
             "the user asked not to.")
 
 
+# Words that open a line by pointing back or turning the story: a connective
+# ("So", "But", "Meanwhile"), a pointer to what was just said ("That", "It"),
+# a negation that turns it ("Nobody", "Not everyone"), or a signpost ("Here's").
+BRIDGE_OPENERS = {"so", "but", "yet", "still", "then", "now", "meanwhile", "instead", "and",
+                  "which", "that", "that's", "this", "these", "those", "it", "it's", "they",
+                  "there", "here", "here's", "even", "only", "after", "since", "by", "within",
+                  "while", "because", "unlike", "until", "all", "none", "both", "neither",
+                  "nor", "behind", "beyond", "except", "also", "plus", "worse", "better",
+                  "nobody", "no", "not", "never", "nothing", "follow", "look", "soon",
+                  "later", "overnight", "today", "yesterday", "next", "before"}
+# A time step at the start of the line: "The next morning", "That night",
+# "On Friday", "On 24 October", "Hours after the post", "Two days on".
+TIME_STEP = re.compile(
+    r"^(the next|that (night|day|morning|evening|week|weekend|month)|this (week|month|morning)"
+    r"|on (monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d)"
+    r"|(minutes?|hours?|days?|weeks?|months?|years?)\b"
+    r"|(a|one|two|three|four|five|six|seven|ten|\d+) (minutes?|hours?|days?|weeks?|months?|years?)\b)")
+
+
+def sentences(text):
+    return [x.strip() for x in re.split(r"(?<=[.!?])\s+", (text or "").strip()) if x.strip()]
+
+
+def beat_sections(scenes):
+    """Each beat's section: its own "section", else the one before it (so
+    labelling the first beat of each section is enough). Hook beats default
+    to "hook" and the last beat to "ending"."""
+    hook, out, cur = set(hook_indices(scenes)), [], None
+    for i, s in enumerate(scenes):
+        cur = s.get("section") or ("hook" if i in hook else
+                                   "ending" if i == len(scenes) - 1 else cur)
+        out.append(cur)
+    return out
+
+
+def is_bridge(line, before):
+    """Whether a section's first sentence carries the story on from the last
+    sentence of the beat before: a question, an opener that points back,
+    turns or signposts (BRIDGE_OPENERS), a time step (TIME_STEP, "... later"),
+    or a word picked up from that sentence. A loose test: it flags cold
+    restarts, it can't prove the story flows."""
+    if line.endswith("?"):
+        return True
+    low = line.lower().replace("’", "'")
+    words = re.findall(r"[a-z0-9']+", low)
+    if words and words[0] in BRIDGE_OPENERS:
+        return True
+    if TIME_STEP.match(" ".join(words)) or re.search(r"\blater\b", " ".join(words[:5])):
+        return True
+    return bool(content_words(line) & content_words(before))
+
+
+def story_spine(scenes):
+    """[(section, beat id, last line before it, first line of it)] at each
+    section change after the hook: read in order, the first lines should
+    tell the story by themselves."""
+    secs, spine = beat_sections(scenes), []
+    for i in range(1, len(scenes)):
+        if secs[i] != secs[i - 1]:
+            before = (sentences(scenes[i - 1].get("narration")) or [""])[-1]
+            first = (sentences(scenes[i].get("narration")) or [""])[0]
+            spine.append((secs[i], scenes[i].get("id", f"#{i}"), before, first))
+    return spine
+
+
+def bridge_problems(scenes):
+    """Warnings for the story spine (SKILL.md, "Bridge every section
+    change"): a section that opens cold, and section openers that keep
+    starting with the same word ("So… So… So…"). Empty when no beat is
+    labelled. Warnings only: the verifier's spine read is the gate."""
+    if not any(s.get("section") for s in scenes):
+        return []
+    out, spine = [], story_spine(scenes)
+    for sec, sid, before, first in spine:
+        if first and not is_bridge(first, before):
+            out.append(f"scene {sid}: section '{sec}' seems to open cold with {first!r} after "
+                       f"{before!r}. Open it with a bridge: a question it answers, a turn, a "
+                       "time step, or a word picked up from the line before (SKILL.md, "
+                       "\"Bridge every section change\").")
+    # The loop-back echoes the hook, so the last section's opener isn't counted.
+    last = len(scenes) - 1
+    ids = {s.get("id", f"#{i}"): i for i, s in enumerate(scenes)}
+    firsts = [re.findall(r"[a-z']+", f.lower().replace("’", "'"))[:1]
+              for _, sid, _, f in spine if ids.get(sid) != last]
+    counts = {}
+    for w in firsts:
+        if w:
+            counts[w[0]] = counts.get(w[0], 0) + 1
+    for w, n in counts.items():
+        if n > 2:
+            out.append(f"{n} section openers start with {w.capitalize()!r}; vary the bridges "
+                       "(a question, a turn, a time step, a picked-up word) so the spine doesn't "
+                       "read as a formula (SKILL.md, \"Bridge every section change\").")
+    return out
+
+
 def clip_info(path):
     """(duration, width, height) of a clip's video stream, or None."""
     r = run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
@@ -103,6 +199,53 @@ def summary_text(sm):
         for half in p.get("pair", []):
             parts += [half.get("title", ""), half.get("text", "")]
     return " ".join(x for x in parts if x)
+
+
+def summary_row_count(panels):
+    """Rows the end card lays the panels out in: figures and donuts two to a
+    row, any other panel on a row of its own (as reel_render.summary_rows)."""
+    rows, pend = 0, 0
+    for p in panels:
+        if "value" in p and "bar" not in p and "compare" not in p:
+            pend += 1
+            if pend == 2:
+                rows, pend = rows + 1, 0
+        else:
+            rows, pend = rows + 1 + (1 if pend else 0), 0
+    return rows + (1 if pend else 0)
+
+
+def _share(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and 0 <= x <= 1
+
+
+def panel_problems(p):
+    """What is wrong with one summary panel, as messages (empty when fine)."""
+    if "compare" in p:
+        items = p["compare"]
+        if not isinstance(items, list) or not 2 <= len(items) <= 3:
+            return ["a 'compare' panel needs 2 or 3 bars."]
+        bad = [it for it in items if not (isinstance(it, dict) and it.get("label")
+               and it.get("value") and isinstance(it.get("amount"), (int, float))
+               and it["amount"] >= 0)]
+        if bad:
+            return [f"each 'compare' bar needs 'label', 'value' (as shown) and a numeric "
+                    f"'amount' >= 0 in the same unit as the others, got {bad[0]!r}."]
+        return []
+    for k in ("bar", "donut"):
+        if k in p:
+            if not p.get("value"):
+                return [f"a '{k}' panel needs a 'value' (the figure as shown), got {p!r}."]
+            if not _share(p[k]):
+                return [f"'{k}' is the share the chart fills, a number from 0 to 1 (0.02 for "
+                        f"2%), got {p[k]!r}."]
+            if "bar" in p and "donut" in p:
+                return ["a panel is a 'bar' or a 'donut', not both."]
+            return []
+    if not (p.get("value") or len(p.get("pair", [])) == 2):
+        return [f"each summary panel needs a 'value', a 'pair' of two halves or a 'compare' "
+                f"list, got {p!r}."]
+    return []
 
 
 def validate(scenes, args, man=None):
@@ -256,16 +399,25 @@ def validate(scenes, args, man=None):
                               "'value' and 'label', or distinctions with 'pair').")
             else:
                 for pnl in sm["panels"]:
-                    if not (pnl.get("value") or len(pnl.get("pair", [])) == 2):
-                        errors.append(f"scene {sid}: each summary panel needs a 'value' or a "
-                                      f"'pair' of two halves, got {pnl!r}.")
+                    errors += [f"scene {sid}: {e}" for e in panel_problems(pnl)]
                 said = SAVE_PROMPT.search(summary_text(sm) + " " + s.get("headline", ""))
                 if said and not man.get("allow_save_prompt"):
-                    errors.append(f"scene {sid}: the summary card says {said.group(0)!r}. It "
-                                  "never tells the viewer what to do with it unless the user "
-                                  "asked (set \"allow_save_prompt\": true).")
-            if i != len(scenes) - 1:
-                errors.append(f"scene {sid}: the summary card belongs in the last beat (the end).")
+                    errors.append(f"scene {sid}: the summary panels say {said.group(0)!r}. The "
+                                  "end card never tells the viewer what to do with them unless "
+                                  "the user asked (set \"allow_save_prompt\": true).")
+                rows = summary_row_count(sm["panels"])
+                if rows > 2:
+                    errors.append(f"scene {sid}: the summary panels take {rows} rows on the end "
+                                  "card; 2 fit above the pointer (up to 4 figures, or 2 figures "
+                                  "and one distinction). Keep the figures the reel landed hardest.")
+                for k in ("title", "sources"):
+                    if sm.get(k):
+                        warnings.append(f"scene {sid}: summary '{k}' is ignored: the end card's "
+                                        "closing line is its title and its disclosure line "
+                                        "names the sources.")
+            if not s.get("end_card"):
+                errors.append(f"scene {sid}: summary panels go on the end card: put \"summary\" "
+                              "on the shot with \"end_card\": true (SKILL.md, \"End card\").")
         if s.get("map"):
             errors.append(f"scene {sid}: the build no longer draws maps. Generate the map with "
                           "Muse (SKILL.md, \"Map\") and pass it as \"clip\" or \"image\" with "
@@ -289,7 +441,14 @@ def validate(scenes, args, man=None):
         problem = loop_back_problem(scenes)
         if problem:
             errors.append(problem)
-    maps = [s for sc in scenes for s in expand_shots(sc) if s.get("schematic")]
+    if len(scenes) > 2:
+        if any(s.get("section") for s in scenes):
+            warnings += bridge_problems(scenes)
+        else:
+            warnings.append("no beat has a \"section\"; label the first beat of each section "
+                            "(chain, motive, details, confirmed, timeline...) so the build can "
+                            "check that every section change has a spoken bridge.")
+    maps =[s for sc in scenes for s in expand_shots(sc) if s.get("schematic")]
     if len(maps) > 1:
         warnings.append("more than one map shot; the spec shows the map once.")
     wipes = sum(1 for _, _, _, sh in units if sh.get("wipe"))

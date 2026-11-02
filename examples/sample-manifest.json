@@ -1,7 +1,7 @@
 {
   "title": "Sample reel (manifest shape)",
   "output": "sample_reel.mp4",
-  "max_duration": 60,
+  "max_duration": 65,
   "music_bed": true,
   "scenes": [
     {
@@ -34,7 +34,8 @@
     },
     {
       "id": "clip",
-      "narration": "On 19 October, Muhammad Lutfi alleged, without evidence, that Singapore pulled the strings.",
+      "section": "chain",
+      "narration": "It started with one claim. On 19 October, Muhammad Lutfi alleged, without evidence, that Singapore pulled the strings.",
       "material": "real",
       "headline": "LUTFI CLAIMS SINGAPORE PULLED STRINGS",
       "yellow_words": [
@@ -97,7 +98,8 @@
     },
     {
       "id": "denial-card",
-      "narration": "Dino, Saiful, and the Singapore embassy said no such visit took place.",
+      "section": "confirmed",
+      "narration": "So did that meeting happen? Dino, Saiful, and the Singapore embassy said no such visit took place.",
       "material": "recreated",
       "card": {
         "outlet": "THE STRAITS TIMES",
@@ -130,7 +132,7 @@
     },
     {
       "id": "gas-map",
-      "narration": "Indonesia did reduce gas exports on 24 October, for domestic supply reasons.",
+      "narration": "But one part is true. Indonesia did reduce gas exports on 24 October, for domestic supply reasons.",
       "material": "ai",
       "headline": "INDONESIA CUT GAS EXPORTS ON 24 OCT",
       "yellow_words": [
@@ -149,22 +151,41 @@
       "id": "distinction",
       "narration": "The gas cut is real. Tying it to MSCI interference is false.",
       "material": "real",
-      "headline": "GAS CUT REAL, MSCI LINK FALSE",
-      "yellow_words": [
-        "FALSE"
-      ],
-      "image": "gas_cut_photo.jpg",
-      "image_source": "CNA • GAS-CUT ARTICLE, 26 OCT 2026",
-      "keep": [
-        0.15,
-        0.05,
-        0.8,
-        0.95
+      "shots": [
+        {
+          "image": "gas_cut_photo.jpg",
+          "image_source": "CNA • GAS-CUT ARTICLE, 26 OCT 2026",
+          "keep": [
+            0.15,
+            0.05,
+            0.8,
+            0.95
+          ],
+          "headline": "THE GAS CUT IS REAL",
+          "yellow_words": [
+            "REAL"
+          ]
+        },
+        {
+          "image": "msci_factcheck.jpg",
+          "image_source": "CNA VERIFY • 29 OCT 2026",
+          "keep": [
+            0.05,
+            0.1,
+            0.95,
+            0.9
+          ],
+          "headline": "THE MSCI LINK IS FALSE",
+          "yellow_words": [
+            "FALSE"
+          ]
+        }
       ]
     },
     {
       "id": "scale",
-      "narration": "About 400 posts spread the claims, CNA Verify found.",
+      "section": "details",
+      "narration": "But the posts kept spreading. CNA Verify counted about 400 of them.",
       "material": "recreated",
       "headline": "CNA VERIFY: ABOUT 400 POSTS SPREAD IT",
       "yellow_words": [
@@ -177,38 +198,9 @@
       }
     },
     {
-      "id": "shots-example",
-      "narration": "Two outlets reported the denial the same morning.",
-      "material": "real",
-      "shots": [
-        {
-          "image": "photo_a.jpg",
-          "image_source": "OUTLET A • 25 OCT 2026",
-          "headline": "OUTLET A REPORTS THE DENIAL",
-          "keep": [
-            0.2,
-            0.1,
-            0.8,
-            0.9
-          ]
-        },
-        {
-          "image": "photo_b.jpg",
-          "image_source": "OUTLET B • 25 OCT 2026",
-          "headline": "OUTLET B REPORTS IT TOO",
-          "keep": [
-            0.1,
-            0.2,
-            0.9,
-            0.8
-          ],
-          "weight": 2
-        }
-      ]
-    },
-    {
       "id": "timeline",
-      "narration": "It began on 19 October; the denials followed within a week.",
+      "section": "timeline",
+      "narration": "And it all moved fast. It began on 19 October, and the denials followed within a week.",
       "material": "diagram",
       "headline": "HOW THE CLAIM UNFOLDED",
       "yellow_words": [
@@ -237,67 +229,44 @@
     },
     {
       "id": "end",
-      "narration": "Check before you share. So, what really happened?",
+      "narration": "So, what really happened? A real gas cut, and a chain every side denies.",
       "material": "recreated",
       "disclosure": "AI voice · AI illustrations (Muse) · Sources: CNA, The Straits Times, CNA Verify",
-      "shots": [
-        {
-          "summary": {
-            "title": "WHAT'S REAL",
-            "yellow_words": [
-              "REAL"
-            ],
-            "panels": [
+      "end_card": true,
+      "headline": "CHECK BEFORE YOU SHARE",
+      "yellow_words": [
+        "CHECK"
+      ],
+      "summary": {
+        "panels": [
+          {
+            "value": "~400",
+            "label": "posts spreading the claims",
+            "source": "CNA VERIFY, 29 OCT"
+          },
+          {
+            "value": "12M",
+            "label": "views of those posts",
+            "source": "CNA VERIFY, 29 OCT"
+          },
+          {
+            "pair": [
               {
-                "value": "~400",
-                "label": "posts spreading the claims",
-                "source": "CNA VERIFY, 29 OCT"
+                "title": "REAL",
+                "text": "Indonesia cut gas exports for domestic supply"
               },
               {
-                "value": "12M",
-                "label": "views of those posts",
-                "source": "CNA VERIFY, 29 OCT"
-              },
-              {
-                "value": "<2%",
-                "label": "of Singapore's daily gas demand cut",
-                "source": "EMA VIA CNA, 26 OCT"
-              },
-              {
-                "value": "0",
-                "label": "operators identified behind the posts",
-                "source": "CNA VERIFY, 29 OCT"
-              },
-              {
-                "pair": [
-                  {
-                    "title": "REAL",
-                    "text": "Indonesia cut gas exports for domestic supply"
-                  },
-                  {
-                    "title": "FALSE",
-                    "text": "That Singapore or MSCI was behind it"
-                  }
-                ]
+                "title": "FALSE",
+                "text": "That Singapore or MSCI was behind it"
               }
-            ],
-            "sources": "Sources: CNA, The Straits Times, CNA Verify"
-          },
-          "weight": 3
-        },
-        {
-          "end_card": true,
-          "headline": "CHECK BEFORE YOU SHARE",
-          "yellow_words": [
-            "CHECK"
-          ],
-          "pointer": {
-            "outlet": "CNA VERIFY",
-            "image": "cna_verify_headline.png"
-          },
-          "weight": 2
-        }
-      ]
+            ]
+          }
+        ]
+      },
+      "pointer": {
+        "outlet": "CNA VERIFY",
+        "image": "cna_verify_headline.png"
+      }
     }
   ],
   "sfx": true

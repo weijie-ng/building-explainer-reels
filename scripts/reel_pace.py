@@ -12,7 +12,7 @@ Shot kinds:
   built  a graphic the build animates on the narrated words: headline card,
          diagram, timeline, stat
   still  a still image (creep, push, pan or inset only)
-  end    the summary card and end card (not counted)
+  end    the end card (not counted)
 """
 
 from reel_common import *  # noqa: F401,F403

@@ -42,7 +42,7 @@ Modules: reel_common (constants, helpers), reel_manifest (loading,
 validation), reel_continuity (what carries on across a cut), reel_render (shot renderers, stat, wipe), reel_pace (slideshow check), reel_subs (phrasing, Whisper
 timing, caption ASS), reel_audio (narration, music, loudness), check_sync (sync check),
 check_ai_animation (how long an AI animation of a graphic stays faithful),
-check_card_hold (how long the finished summary card and end card stay on screen).
+check_card_hold (how long the finished end card stays on screen).
 
 Manifest (see examples/sample-manifest.json):
 {
@@ -90,6 +90,12 @@ Manifest (see examples/sample-manifest.json):
                                    // seconds after a sync report names them
     "card": {...}, "diagram": {...},   // scene types, below
     "end_card": true,              // with "pointer" and "disclosure", below
+    "section": "chain",            // on the first beat of each section (later
+                                   // beats inherit it; hook and end default):
+                                   // its first sentence should bridge from
+                                   // the beat before (SKILL.md, "Bridge every
+                                   // section change"); the dry run prints the
+                                   // story spine and warns at cold openers
     "audio": null,                 // optional pre-made narration; skips TTS
     "shots": [                     // optional: cut the scene into several
       {"image": "a.jpg", "image_source": "...", "headline": "..."},
@@ -132,11 +138,17 @@ Scene types:
   "no_screenshot": "<why>"} is the last-resort fallback; never a fake poster.
   Also
   "disclosure" (one line: AI voice, AI illustrations, sources).
-- summary: {"title", "yellow_words", "panels": [{"value", "label", "source"} |
-  {"pair": [{"title", "text"}, {"title", "text"}]}], "sources"}. The
-  summary card: an infographic of the key figures and distinctions, in the
-  last beat (alone, or as the first of its shots before the end card).
-  Panels share one size and type size, appear one by one, and never clip.
+- summary (on the end card only): {"panels": [{"value", "label", "source"} |
+  {"pair": [{"title", "text"}, {"title", "text"}]} |
+  {"value", "bar": share 0-1, "label", "source"} |
+  {"value", "donut": share 0-1, "label", "source"} |
+  {"compare": [{"label", "value", "amount"}, ...2-3], "source"}]}. The
+  reel's key figures, distinctions and charts, between the caption band and
+  the pointer: two rows at most (figures and donuts two to a row; a
+  distinction, bar or compare chart on its own row), so up to 4 figures.
+  Charts fill in as their panel lands. Panels share one size and type size, appear one by one, and
+  never clip. An end card with panels keeps its captions; the pointer
+  screenshot should be a wide strip (outlet, headline, byline).
 
 Rules enforced (the spec is SKILL.md; where this docstring disagrees, SKILL.md
 wins):
@@ -195,7 +207,7 @@ wins):
   the current word yellow, spoken words white, the same size; the phrase is
   replaced whole by the next. A phrase never ends on an article, preposition
   or conjunction, never splits a name or a number, and never crosses a beat.
-  The end card carries no captions.
+  An end card without summary panels carries no captions.
 - Audio: silence trimmed per scene, 0.15s tail, original sine-pad bed,
   compression then loudnorm to about -14 LUFS, AAC 192k 48 kHz stereo.
 - Every shot file is exactly round(dur * 30) frames at 30 fps; concat
@@ -227,9 +239,10 @@ from reel_common import *  # noqa: E402,F401,F403
 from reel_subs import (WHISPER_MODEL, whisper_words, match_words, apply_nudges, phrase_times,  # noqa: E402
                        caption_events, write_ass)
 from reel_manifest import (load_manifest, validate, check_tools, expand_shots,  # noqa: E402
-                           hook_indices)
+                           hook_indices, story_spine, sentences)
 from reel_render import (render_shot, source_label, diagram_plate, header_bottom,  # noqa: E402
-                         apply_wipe, stat_time, summary_hold, summary_rows)
+                         apply_wipe, stat_time, summary_hold, card_rows,
+                         captioned)
 from reel_pace import pace_report, print_table, shot_kind, coverage  # noqa: E402
 from reel_continuity import Continuity  # noqa: E402
 import reel_audio  # noqa: E402
@@ -406,7 +419,7 @@ class Build:
         on the previous shot's visual (same clip, still, card, timeline or
         diagram) carries its animation on too: see reel_continuity."""
         plan, warnings, cont = [], [], Continuity()
-        hold_errors = []        # summary/end card on screen too briefly to read
+        hold_errors = []        # end card on screen too briefly to read
         self.cues = []          # sound accents: (name, reel seconds, beat index)
         hook = set(hook_indices(self.scenes))
         self.caption_tops, self.no_caption = {}, []
@@ -421,7 +434,7 @@ class Build:
             # One caption position per beat (phrases never cross a beat), so a
             # phrase never jumps at a cut: y=300, or just under the tallest
             # header stack of the beat's shots.
-            heads = [header_bottom(sh) for sh in shots if not sh.get("end_card")]
+            heads = [header_bottom(sh) for sh in shots if captioned(sh)]
             top = max([CAPTION_TOP] + [h + CAPTION_GAP for h in heads])
             self.caption_tops[b["i"]] = top
             if top > CAPTION_TOP:
@@ -433,7 +446,7 @@ class Build:
                 sh["_scene_dur"], sh["_shot_start"] = min(b["speak"], b["dur"]), bounds[j] / FPS
                 sh["_caption_top"] = top
                 sh["_hook"] = b["i"] in hook
-                if sh.get("end_card"):
+                if not captioned(sh):
                     self.no_caption.append((b["start"] + bounds[j] / FPS,
                                             b["start"] + bounds[j + 1] / FPS))
                 where = f"beat {s.get('id')} shot {j + 1}"
@@ -474,12 +487,12 @@ class Build:
                     held, need = summary_hold(sh, shot_dur)
                     if held + 1 / FPS < need:
                         hold_errors.append(
-                            f"{where}: the finished summary card is on screen {held:.2f}s; it "
-                            f"needs {need:.1f}s ({SUMMARY_HOLD_PER_PANEL}s per panel, at least "
-                            f"{SUMMARY_HOLD_MIN}s). Raise this shot's weight (take it from the end "
-                            f"card, which only needs {END_CARD_HOLD_MIN}s), cut panels, or add "
-                            "narration.")
-                if sh.get("end_card") and shot_dur + 1 / FPS < END_CARD_HOLD_MIN:
+                            f"{where}: the end card's finished summary panels are on screen "
+                            f"{held:.2f}s; they need {need:.1f}s ({SUMMARY_HOLD_PER_PANEL}s per "
+                            f"panel, at least {SUMMARY_HOLD_MIN}s). Raise the end card's weight "
+                            "(take it from the shot before), cut panels, or lengthen the "
+                            "loop-back narration.")
+                elif sh.get("end_card") and shot_dur + 1 / FPS < END_CARD_HOLD_MIN:
                     hold_errors.append(f"{where}: the end card runs {shot_dur:.2f}s; it needs "
                                        f"{END_CARD_HOLD_MIN}s. Raise its weight.")
                 t_shot = b["start"] + bounds[j] / FPS
@@ -567,7 +580,7 @@ class Build:
                          "kind": shot_kind(sh), "wipe": sh.get("wipe") or None,
                          "coverage": (lambda c: None if c is None else round(c, 2))(coverage(sh)),
                          "label": source_label(sh), "headline": sh.get("headline", ""),
-                         "panels": (sum(len(r) for r in summary_rows(sh["summary"].get("panels", [])))
+                         "panels": (sum(len(r) for r in card_rows(sh))
                                     if sh.get("summary") else None)})
             t += n
         with open(path, "w", encoding="utf-8") as f:
@@ -578,7 +591,8 @@ class Build:
     def subtitles(self, indices, path):
         """Word-by-word captions for the given beats -> path (ASS), timed to
         the measured word times and rebased so the first beat starts at 0.
-        The end card carries none. Needs plan() first (caption positions)."""
+        An end card without summary panels carries none. Needs plan() first
+        (caption positions)."""
         t0 = self.timeline[indices[0]]["start"]
         skip = [(a - t0, e - t0) for a, e in self.no_caption]
         phrases, tops, dropped = [], [], []
@@ -774,6 +788,13 @@ def main():
             print(f"  {x['start']:6.2f}-{x['start'] + x['dur']:6.2f}s  {s.get('id')} "
                   f"[{s.get('material')}]: {s.get('headline', '')!r}")
         print("Hook beats: " + ", ".join(str(b.scenes[i].get("id")) for i in hook_indices(b.scenes)))
+        # The story's spine: the hook's last line, then each section's opening
+        # line. Read in order, they should tell the story by themselves.
+        hook_text = " ".join(b.scenes[i].get("narration", "") for i in hook_indices(b.scenes))
+        print("Story spine (read these in order; each should follow from the one before):")
+        print(f"  hook: {(sentences(hook_text) or [''])[-1]}")
+        for sec, sid, _, first in story_spine(b.scenes):
+            print(f"  {sec} ({sid}): {first}")
         hook = set(hook_indices(b.scenes))
         shots = []
         for x in b.timeline:
@@ -816,8 +837,9 @@ def main():
         total = sum(x["dur"] for x in b.timeline)
         print(f"Beats: {len(b.scenes)}  Total: {total:.2f}s (limit {b.max_dur}s)")
         if total > b.max_dur:
-            print(f"WARNING: total {total:.1f}s exceeds {b.max_dur}s -- trim narration (the "
-                  "loop-back may use its short form; never the denial or distinction beats). "
+            print(f"WARNING: total {total:.1f}s exceeds {b.max_dur}s -- cut a whole fact or "
+                  "beat the story can lose, never squeeze lines until they lose who, what or "
+                  "the link to the line before (SKILL.md, \"Fit the length\"). "
                   "Building anyway so it can be reviewed; the self-check will FAIL on length.",
                   file=sys.stderr)
         if stage == "narrate":
