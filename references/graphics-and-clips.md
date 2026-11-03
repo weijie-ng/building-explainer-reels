@@ -1,0 +1,42 @@
+# Diagrams and real-clip composites
+
+Details for two kinds of shot. The rules for what each is for stay in SKILL.md ("Diagram", "Real clips").
+
+## Diagram
+
+**A source's own chain figure is a receipt, not the reel's diagram.** If a source draws the chain (a research firm's attack-path figure), show it as a receipt only when its labels can be read at phone size, cropped to the part the line is about. A wide figure shown whole becomes a thin strip of unreadable boxes. Then rebuild the chain as the reel's own diagram, with nodes revealed on the words and the source in its label ("CHAIN AS DESCRIBED BY DREAM, 26 OCT 2026"), keeping the source's node names and claim status.
+
+**AI motion behind the diagram.** Give every diagram an AI motion clip behind it, because a still blue plate reads as a slide. The only exception is when the nodes fill the frame too tightly for the motion to show. A diagram can move like an AI video without handing the AI anything that must be exact. The words, boxes, arrows and ✗ have to match facts.md and land on the narrated word; AI video can't spell reliably and can't be timed to a word, and an AI-animated diagram has clipped its own labels at the frame edge before. So split the work:
+1. Run `python3 scripts/build_reel.py manifest.json --stage diagram-brief --workdir <dir>`. For each diagram shot it writes a text-free start frame (the background blue, a faint guide line where the arrows run, soft glows where the nodes will sit), the length the clip needs (measured from the narration), and a ready Muse prompt, in `<dir>/diagram_brief/`.
+2. Generate the clip with Muse from that start frame and prompt (image animation; a text-only prompt also works). Look at it: no words, numbers, shapes or objects the plate doesn't have, nothing pushed off the frame.
+3. Set `"diagram": {..., "motion_clip": "chain_motion.mp4"}` (and `clip_start` to reuse one long clip across several shots of the same diagram).
+
+The build plays the clip as the base layer, tinted toward the background blue, and draws the nodes, arrows, labels and ✗ on top at the narrated words, exactly as without it. The label reads "… · AI MOTION". Never ask the AI to draw the diagram itself or its words; if a beat needs a move the plate can't give (a node sliding in, tokens along an arrow), build it in the script.
+
+**AI animation of a finished diagram (image + prompt).** Muse can animate a script-made diagram with its text, but it redraws every frame, so it drifts. In a test on a causation diagram ("keep all text exactly as shown"), it began a slow zoom within 0.3s, cut "FALSE CAUSE" to "ALSE CAUSE" by 2s, invented a dark screen frame, and faded the timeline note it was told to keep. Use such a clip only for the span where it still matches its source:
+1. Run `python3 scripts/check_ai_animation.py diagram.png clip.mp4 --strip strip.png`. It compares every frame with the source where the source has text and lines, reports how long the clip stays faithful (`usable_end`) and when new marks appear (a cross being drawn), and PASSes only if at least 1s is usable.
+2. On a PASS, use the clip as the shot's `clip` with `"material": "diagram"`, `"clip_end": <usable_end>`, and `clip_start` chosen so the event you need (the cross) lands on the narrated word; the shot holds the last faithful frame after `clip_end`. Look at the strip: an event must be what the narration says, at the place it says.
+3. On a FAIL, don't use it. Animate those moves in the build instead (the reveal and the ✗ on the narrated word), with an AI motion clip behind the diagram for movement.
+
+## Side-by-side composite of real clips
+
+**Side-by-side composite of real clips.** To show the same content posted by several accounts, a script may tile their real clips (2×2 or side by side) into one 9:16 clip. Pass it as `"clip"` with `"material": "real"`. The rules:
+- **Unedited tiles.** Each tile is that account's actual clip, changed only by crop, scale, trim and sync.
+- **Names copied exactly.** The account name and avatar drawn above each tile are taken word for word from the post.
+- **Logged.** Each account, post URL and date goes in the asset log.
+- **A label that describes the set.** Use one source label saying what the tiles are, plus the trace date (e.g. "TRACED EXAMPLES • 28 OCT 2026"). If the tiles aren't part of a figure in the reel, say so ("NOT CNA'S 68"). Never imply the tiles are the whole set or a sourced count.
+- **Room for the reel's text.** Leave the headline band and the caption band free of account names and other tile text the viewer must read.
+- **Burned-in captions.** Mask the source clips' captions (`clip_mask`) wherever they would collide with the reel's headline or captions.
+- **Muted**, like any real clip.
+
+Build it with `python3 scripts/make_composite.py spec.json --out composite.mp4 --preview`:
+- **What the script does:**
+  - places 2–4 tiles in the content band, between the caption band and y=1030, with the reel's blue over a blurred fill behind them;
+  - draws each account's avatar and name exactly as given;
+  - masks the source clips' captions per tile;
+  - can bring the tiles in one after another (`stagger`).
+- **What it refuses:** a tile without its account, post URL and date, or a composite without the set's label.
+- **What it prints:** the manifest entry and the asset-log rows.
+- **The preview:** shades the header, caption and platform-UI bands, so you can check that nothing readable sits under them.
+
+The spec format is at the top of the script.

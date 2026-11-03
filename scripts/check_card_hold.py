@@ -5,8 +5,8 @@ the rendered reel.
 
 An end card with summary panels brings its panels in one after another. If
 the shot is short, the reel ends just as the last panel lands, so the
-finished card is never seen. The build plans against this (SKILL.md, "End
-card"); this script measures what actually rendered.
+finished card is never seen. The build plans against this (references/end-card.md,
+"Timing"); this script measures what actually rendered.
 
 For an end card with panels ("summary" in the shot list), it finds the last
 panel landing: the last sudden jump between consecutive frames below the

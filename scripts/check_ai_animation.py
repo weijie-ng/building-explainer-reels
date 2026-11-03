@@ -16,7 +16,7 @@ Output: the usable span (seconds), per-second drift, where the clip adds
 things (the animation's own events, such as a cross being drawn, with
 their times), and a PASS if at least --min-usable seconds are usable.
 Use the span as the shot's "clip_end" and an event time as "event_at" in
-the manifest (see SKILL.md, "AI animation of a script diagram").
+the manifest (see references/graphics-and-clips.md, "AI animation of a finished diagram").
 
 Needs ffmpeg and Pillow. Compares at 180x320 greyscale, so it is fast and
 ignores compression noise.

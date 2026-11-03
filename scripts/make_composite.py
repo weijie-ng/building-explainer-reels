@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Tile 2-4 real clips from different accounts into one 9:16 composite shot,
-to show the same content posted again and again (SKILL.md, "Real clips",
+to show the same content posted again and again (references/graphics-and-clips.md,
 "Side-by-side composite of real clips").
 
 The tiles sit in the content band: below the header (source label and
@@ -77,7 +77,7 @@ def load_spec(path):
         fail(f"needs 2-4 tiles, got {len(tiles)}.")
     if not spec.get("label"):
         fail("needs 'label': one source label describing the set, e.g. "
-             "\"TRACED EXAMPLES • 28 OCT 2026\" (SKILL.md, Real clips).")
+             "\"TRACED EXAMPLES • 28 OCT 2026\" (references/graphics-and-clips.md).")
     dur = float(spec.get("duration") or 0)
     if dur <= 0:
         fail("needs 'duration' (the shot's length in seconds).")

@@ -231,85 +231,19 @@ Give headlines over busy photos a black stroke.
 
 **False or unverified material (highest priority).** Any image that *is* the false or unverified claim (a fake post, a doctored graphic, an unverified screenshot) carries its tag every time it appears, for example "DISINFORMATION POST — flagged by [verifying outlet]". It never opens the reel, never appears on the end card, and never sits under a true line; use a real receipt for true lines. An article's lead image (og:image) is often the false material itself, such as the fake posters a fact-check debunks. Look at it before using it; if it is, open the reel with a cropped screenshot of the article's outlet name and article headline instead (or a labelled AI illustration), and show the false material later under its tag.
 
-**Asset gathering.** Every shot gets its visual this way, except the diagram, the map, the timeline and the end card. Those are not a way around it: use the diagram only for the one chain of links, the map once, and the timeline once, just before the end card. Gathering has two parts: a search that always runs in full, then a choice that takes judgment.
+**Asset gathering.** Every shot gets its visual this way, except the diagram, the map, the timeline and the end card. Those are not a way around it: use the diagram only for the one chain of links, the map once, and the timeline once, just before the end card. The full method is in `references/asset-gathering.md`: read it at Workflow step 4, before gathering anything. In short:
+1. **Search every place, for every shot:** the cited articles, other coverage and free images, the primary source, and footage (footage first for the hook). A find counts only when it is related to what the shot is about.
+2. **Choose** between the best related find and what Muse AI could show. Keep the real find when it is the evidence for the line; never swap evidence for AI because it looks dull. Use AI (a video by default) for a concept, a process or a scale, or when nothing related, or only dull finds, turned up. A single sourced figure is a stat shot. A headline card comes last, at most 2 per reel.
+3. **Check the reel as a whole:** something on screen changes every 2–6s, shot types take turns, and the dry run's pace report is read before capturing more.
+4. **Log it** in the asset log in facts.md; the verifier checks it (D4, C7).
 
-**1. Search every place, for every shot.** Before choosing, look in all four places and note what each gave:
-- **A. Cited articles.** Each article's lead image (og:image) and its inline photos or charts. A page-text fetch lists the page's image URLs.
-- **B. Other coverage and free images.** Reputable outlets or agencies covering the same story, and Wikimedia Commons (how-to below).
-- **C. The primary source.** The post, statement or page itself, for a screenshot cropped to the claim (see "Screenshots").
-- **D. Footage.** A real clip of the people, place or event, if one can be cleanly obtained (see "Real clips"). For the hook, look for footage first.
-
-A find counts only when it is **related**: it shows the people, organisations, products, places, documents or data the shot is about. A stock "hacker in a hoodie", an unrelated archive photo, or a logo shot reused from another story is not related. An archive photo of the people involved is related, but never present it as the event itself.
-
-**2. Choose.** This is a judgment, not a fixed order. Put the best related find next to what a Muse AI image or video could show, and ask which makes this shot's line clearer and more watchable.
-- **Keep the real find** when it is the evidence for the line (the post, the document, the chart, the actual person or place), or when it shows something the viewer couldn't otherwise picture. Never swap evidence for AI because it looks dull. Give it motion instead: `push`, `pan`, `inset`, or a tighter keep box on the detail that matters.
-- **Use Muse AI** in three cases:
-  - the line is a concept, a process or a scale (money frozen, a queue paused, a message spreading across thousands of accounts);
-  - nothing related was found;
-  - the related find is still dull after a tighter crop and motion: a reused logo, a stock-looking photo, a small or blurry image, a plain head shot already used, or the same subject as the shots around it.
-
-  Make AI material a video by default: an AI still is only the start frame you check and then animate (see "AI material"). An AI still left still is the weakest moving shot there is, so log why video didn't work. See "AI material" for the limits.
-- **A figure is a stat shot.** When a line lands on one sourced figure (a score, a count, a date, "0 of 5"), show it as a `stat` rather than a picture: it arrives on the word and carries its source label.
-- **Weigh trust.** Viewers trust a labelled AI visual less, even when it is accurate. So don't use AI where a real image carries the line just as well.
-- **Headline card**, only when no real find works and AI can't show the line. It is the weakest shot (a headline on plain blue); at most 2 per reel, not counting the end card.
-
-**3. Check the reel as a whole.**
-- Something on screen changes every 2–6s: a cut, a move, a highlight, or a node or graphic build.
-- Shot types take turns. Never three similar images in a row, no subject in more than two shots, and no two text screenshots back to back.
-- If most shots show one logo, look for photos of the people, places or objects in the story instead.
-- Run the dry run and read its pace report (see "Play as a video, not a slideshow") before generating or capturing anything more: it is far cheaper to swap a planned still for a clip or a stat now than after the build.
-
-**4. Log it.** For each shot, add a row to the **asset log** in facts.md with four entries:
-- the shot;
-- what each of A–D gave (or "nothing related");
-- what was chosen;
-- why, in a few words, for example "B: Reuters photo of the minister, the receipt" or "A: only the logo, already used twice; AI: frozen funds".
-
-Record each asset's file, source, date and licence there too. The verifier checks this log (D4, C7).
-
-**When an image has too much text (fails D5), repair it before dropping it.** Stop at the first step that works:
-1. Re-crop the keep box to the photo, chart or logo, or to the account name plus the one or two claim lines (about 25 words).
-2. Use the same article's lead image, or an inline photo or chart.
-3. Use another source's image, or a shorter post stating the same claim.
-4. Use AI.
-5. Use a headline card, only after steps 1–4. Note each attempt in the asset log.
-
-**Downloading and checking images.**
-- **Download as JPEG or PNG.** Image CDNs pick the format from the request, so a `.png` URL can return AVIF or WebP, which the build can't read. Send `Accept: image/jpeg`, or change `f_auto` to `f_jpg` in Cloudinary-style URLs.
-- **Wikimedia Commons.** Search with `commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=…`, then read each file's licence, author and date. Download either the original file URL or the `thumburl` the API returns with `prop=imageinfo&iiurlwidth=1280`. Commons rejects thumbnail sizes it didn't generate (HTTP 400).
-- **Credit the photo on screen** with photographer, year and licence (for example "PHOTO: GAGE SKIDMORE, 2025, CC BY-SA 3.0"), or "IMAGE: OUTLET, DATE" for an article's image. A concept or stock photo is labelled "ILLUSTRATIVE PHOTO".
-- **Check what each photo shows.** Crop out anything now false, such as an old job title on a slide behind the person. A photo of a person next to a claim must not suggest they made it unless they did, so name whose statement it is in the source label.
-- **Look at every image and clip before it goes in the manifest.** The build rejects an image it can't read or that is almost blank.
-
-**Screenshots.** When you use a screenshot of the actual source (the X post, the company statement, the article page), follow these capture rules:
-- **The claim must be visible in the screenshot.** Posts cut off with "Show more" often hide the very line you need; use another post that states it in full, or choose again (see "Asset gathering").
-- **Times must match the labels.** Capture with the browser set to UTC (or the time zone the reel uses), because posts show times in the viewer's time zone. X posts can be captured without logging in from `platform.twitter.com/embed/Tweet.html?id=<post id>&theme=dark`.
-- **Crop out what isn't the source:** ads, cookie banners, site menus. Set a keep box on the part that carries the claim.
-- **Wait for images before a screenshot.** Article images often load only when scrolled into view. Scroll each one into view and wait until it has loaded, or the capture shows grey boxes.
-- **Re-read the page when you capture it.** Pages change: a headline figure updated between research and capture is a fact to update in facts.md, not a detail to ignore.
-- **Never put a screenshot under a headline or line it doesn't support.** An analyst's headline naming a culprit doesn't belong under a line stating it as fact.
-- **Little to no text on screen besides the headline and caption.** The headline and caption already carry the claim, so the visual behind them should be an image to look at, not a page to read. Prefer a photo, logo, chart or graphic. When a screenshot is the receipt, crop the image itself to the account name plus the one or two lines that state the claim (about 25 words at most). Never show a whole post, a paragraph, or several posts.
-- **No screen jumps.** At most one text screenshot per beat, and never two text screenshots back to back; put a photo, graphic or diagram between them. Several fast cuts between text-heavy frames make the screen jump and are unreadable.
-
-A plain article photo or thumbnail is shown with outlet and date; it is not a screenshot of the page, so don't call it one.
+The file also covers repairing an image with too much text (D5), downloading and crediting images, and the screenshot capture rules (the claim visible, times matching the labels, little text, no two text screenshots back to back).
 
 **Headline cards.** Use one only when "Asset gathering" found no real image that works and AI can't show the line. Quote only established wording. Outlet name, the outlet's actual article headline where known (at most 10 words: trim a longer one to a verbatim excerpt, marking cut words with "…", never rewording it), single-word yellow highlights, line-and-dot to faint body text (≥22px, readable), and the key sentence highlighted. Fill the card with no blank half. Use each card once. A headline card that opens the reel carries a representative image filling the whole frame behind it (`card.image`, credited by `card.image_source`, centred on `card.keep`); any other card may too. The build darkens the image behind the top and bottom text with gradients, so every line stays readable and the middle of the image stays clear. The image follows the rules for any image: never the false material, always credited, and an AI illustration labelled. Set it in the reel's own style, never in the outlet's page design or logo, so it can't be mistaken for a screenshot.
 
 **Diagram.** One chain, with nodes revealed on the narrated word: the same measured word time that turns that word yellow in the caption, so the node and the word change on the same frame. When the diagram continues over several shots, nodes already shown stay on screen (a later shot whose node list starts with the earlier nodes continues it), the spacing is the same in every shot, and a ✗ already drawn stays drawn. The node column starts below the caption band, and the build tightens the spacing so up to five nodes end above y=1030. Each link carries the status of the claim it represents. When a link is denied or disproved, a red ✗ appears on it when the denial is narrated. Check every node name against the facts sheet.
 
-  **A source's own chain figure is a receipt, not the reel's diagram.** If a source draws the chain (a research firm's attack-path figure), show it as a receipt only when its labels can be read at phone size, cropped to the part the line is about. A wide figure shown whole becomes a thin strip of unreadable boxes. Then rebuild the chain as the reel's own diagram, with nodes revealed on the words and the source in its label ("CHAIN AS DESCRIBED BY DREAM, 26 OCT 2026"), keeping the source's node names and claim status.
-
-  **AI motion behind the diagram.** Give every diagram an AI motion clip behind it, because a still blue plate reads as a slide. The only exception is when the nodes fill the frame too tightly for the motion to show. A diagram can move like an AI video without handing the AI anything that must be exact. The words, boxes, arrows and ✗ have to match facts.md and land on the narrated word; AI video can't spell reliably and can't be timed to a word, and an AI-animated diagram has clipped its own labels at the frame edge before. So split the work:
-  1. Run `python3 scripts/build_reel.py manifest.json --stage diagram-brief --workdir <dir>`. For each diagram shot it writes a text-free start frame (the background blue, a faint guide line where the arrows run, soft glows where the nodes will sit), the length the clip needs (measured from the narration), and a ready Muse prompt, in `<dir>/diagram_brief/`.
-  2. Generate the clip with Muse from that start frame and prompt (image animation; a text-only prompt also works). Look at it: no words, numbers, shapes or objects the plate doesn't have, nothing pushed off the frame.
-  3. Set `"diagram": {..., "motion_clip": "chain_motion.mp4"}` (and `clip_start` to reuse one long clip across several shots of the same diagram).
-
-  The build plays the clip as the base layer, tinted toward the background blue, and draws the nodes, arrows, labels and ✗ on top at the narrated words, exactly as without it. The label reads "… · AI MOTION". Never ask the AI to draw the diagram itself or its words; if a beat needs a move the plate can't give (a node sliding in, tokens along an arrow), build it in the script.
-
-  **AI animation of a finished diagram (image + prompt).** Muse can animate a script-made diagram with its text, but it redraws every frame, so it drifts. In a test on a causation diagram ("keep all text exactly as shown"), it began a slow zoom within 0.3s, cut "FALSE CAUSE" to "ALSE CAUSE" by 2s, invented a dark screen frame, and faded the timeline note it was told to keep. Use such a clip only for the span where it still matches its source:
-  1. Run `python3 scripts/check_ai_animation.py diagram.png clip.mp4 --strip strip.png`. It compares every frame with the source where the source has text and lines, reports how long the clip stays faithful (`usable_end`) and when new marks appear (a cross being drawn), and PASSes only if at least 1s is usable.
-  2. On a PASS, use the clip as the shot's `clip` with `"material": "diagram"`, `"clip_end": <usable_end>`, and `clip_start` chosen so the event you need (the cross) lands on the narrated word; the shot holds the last faithful frame after `clip_end`. Look at the strip: an event must be what the narration says, at the place it says.
-  3. On a FAIL, don't use it. Animate those moves in the build instead (the reveal and the ✗ on the narrated word), with an AI motion clip behind the diagram for movement.
+  The chain figure a source draws is a receipt, not the reel's diagram. Give every diagram an AI motion clip behind it (unless the nodes fill the frame too tightly for it to show), made from `--stage diagram-brief`, and never ask the AI to draw the diagram or its words. An AI animation of a finished diagram is used only for the span `scripts/check_ai_animation.py` measures as faithful. How to do each is in `references/graphics-and-clips.md`.
 
 **Map.** Generate it with Muse (an AI video, or an AI image the build moves), not with the build. Use it once, to show where the story happens or which way something moved. Set `"material": "ai"` and `"schematic": true`: the build labels it "AI-GENERATED MAP • SCHEMATIC — NOT TO SCALE".
   - Ask Muse for a stylised map on the reel's saturated blue (11, 74, 168) with light grey land, 9:16, 720×1280, with its own slow pan or zoom between the places, and **no text, labels, flags or logos**. Place names come from the narration, and so from the captions and the headline.
@@ -319,26 +253,7 @@ A plain article photo or thumbnail is shown with outlet and date; it is not a sc
 
 **Real clips.** Short, muted slices, only if cleanly obtained. Mask the clip's own burned-in captions and logos so they never collide with the headline or our captions; measure the bands from a rendered frame, never guess (ffmpeg delogo needs x > 0). If a clean slice cannot be obtained, omit it and say why; never invent one.
 
-  **Side-by-side composite of real clips.** To show the same content posted by several accounts, a script may tile their real clips (2×2 or side by side) into one 9:16 clip. Pass it as `"clip"` with `"material": "real"`. The rules:
-  - **Unedited tiles.** Each tile is that account's actual clip, changed only by crop, scale, trim and sync.
-  - **Names copied exactly.** The account name and avatar drawn above each tile are taken word for word from the post.
-  - **Logged.** Each account, post URL and date goes in the asset log.
-  - **A label that describes the set.** Use one source label saying what the tiles are, plus the trace date (e.g. "TRACED EXAMPLES • 28 OCT 2026"). If the tiles aren't part of a figure in the reel, say so ("NOT CNA'S 68"). Never imply the tiles are the whole set or a sourced count.
-  - **Room for the reel's text.** Leave the headline band and the caption band free of account names and other tile text the viewer must read.
-  - **Burned-in captions.** Mask the source clips' captions (`clip_mask`) wherever they would collide with the reel's headline or captions.
-  - **Muted**, like any real clip.
-
-  Build it with `python3 scripts/make_composite.py spec.json --out composite.mp4 --preview`:
-  - **What the script does:**
-    - places 2–4 tiles in the content band, between the caption band and y=1030, with the reel's blue over a blurred fill behind them;
-    - draws each account's avatar and name exactly as given;
-    - masks the source clips' captions per tile;
-    - can bring the tiles in one after another (`stagger`).
-  - **What it refuses:** a tile without its account, post URL and date, or a composite without the set's label.
-  - **What it prints:** the manifest entry and the asset-log rows.
-  - **The preview:** shades the header, caption and platform-UI bands, so you can check that nothing readable sits under them.
-
-  The spec format is at the top of the script.
+  To show the same content posted by several accounts, tile their real clips into one side-by-side composite with `scripts/make_composite.py`: unedited tiles, account names copied exactly, logged, one label describing the set. The rules and how to build it are in `references/graphics-and-clips.md`.
 
 **AI material (Muse).** AI images and video are a creative tool, chosen as described in "Asset gathering":
 - for concepts, processes and scale;
@@ -365,23 +280,9 @@ Subject and style are open: flat illustration or photoreal, still or moving. The
 - **Short, labelled and muted.** Each AI still is ≤3s and each AI video ≤6s, labelled. No AI shot runs longer than the real receipt for the same claim; a still receipt is capped at 4s, so a claim that needs longer on its evidence gets a real clip or a second receipt, not a longer illustration.
 - **A scene with one purposeful action, not an icon.** Flat clip-art (a server icon, a shield, a padlock on a plain background) looks like a slide graphic and tells the viewer nothing the headline doesn't. Ask for an illustrative scene with depth and light, and one physical action that acts out the line: a vault door unlatching for "without logging in", one cube after another turning red for "chained to full control", a key failing in a lock for "exploits had to be tuned to each target". Metaphors like these keep it clearly an illustration, never footage of the real event.
 
-  **Making AI video move with purpose.** Generate the still first, look at it, then animate it with Muse as the start frame. Write the prompt as: start frame, one camera move, one action that acts out the line, and constraints. Ask for at least 1s more than the shot needs (5s for a shot up to 4s) so a clean take can be trimmed with `clip_start`/`clip_end`. Templates:
-  - Access or breach: "A heavy vault door in a dark server corridor, blue light. Slow dolly forward as the door unlatches and swings open, light spilling out. One motion only. No people, text or logos. Keep the subject centred, no morphing, no scene change. 9:16."
-  - Chain or spread: "Five identical glass cubes in a row on a dark floor. The first glows red, then a thin beam of light travels to the next and it turns red, one after another. Camera fixed. No text. No morphing. 9:16."
-  - Defence holds: "Macro shot of a brass pin-tumbler lock. A key slides in and fails to turn, then a second key fails. Camera pushes in slowly. No text. 9:16."
-  - Money or scale: "Stacks of coins on a flat blue surface. A conveyor carries them left to right into a frosted box where they vanish. Camera locked. No text or currency symbols. 9:16."
-  - Process paused: "Paper cards on a conveyor belt halt at a barrier; one card is lifted and stamped. One smooth motion. No text. 9:16."
-
-  Look at the result: the action must be the one asked for, finish inside the trimmed span, and invent nothing the line doesn't say.
+- **Making AI video and bringing it in:** the prompt shape and templates, what to ask Muse for (9:16, at least as long as the shot, no text), and what the build does with the clip are in `references/ai-video.md`. Read it before the first Muse generation.
 - **Never beyond the narration or sources.** An AI visual must not suggest something the narration does not say or the sources do not support.
 
-  **Bringing in an AI video from Muse.** Muse saves the generated video as an mp4; put it in the assets folder and reference it like any clip: `"clip": "ai_frozen_funds.mp4", "material": "ai"`. Ask Muse for:
-  - **9:16, 720×1280**, so nothing is cropped. Any other shape is cropped to fill the frame, around the clip's `keep` box (fractions of the frame, as for images), or the centre without one; the build warns when an AI clip isn't 9:16.
-  - **At least as long as its shot** (up to 6s). A shorter clip would hold its last frame, a freeze, and the build warns; use `clip_start` to pick the best part of a longer one.
-  - **No text, logos or watermark** in the frame, except post text on a simulated feed (see the rules above). If one appears anyway, cover it with `clip_mask` or regenerate.
-  - **For a simulated feed or wall of posts**, still ask for 9:16, with the posts large enough to fill the frame. A 16:9 grid cropped to 9:16 keeps only about two columns and loses the sense of many accounts.
-
-  The build handles the rest: any frame rate becomes 30 fps with an exact frame count, the clip's own audio is dropped, and the "AI-GENERATED ILLUSTRATION" label is added. Look at the clip before it goes in the manifest, as with any asset.
 
 **Audio.** About −14 LUFS integrated: gentle compression (threshold −28 dB, ratio 12, makeup 12 dB) before loudnorm, because loudnorm alone stops short on true-peak limiting. Use an original low music bed (generated tones, no copyrighted music) with the voice clearly on top. Inter-sentence gaps of 0.15s; no silence over 0.3s except the final 0.5s; no narration words cut. Export 48 kHz stereo AAC at 192k (the default bitrate overshot true peak).
 
@@ -392,19 +293,7 @@ Subject and style are open: flat illustration or photoreal, still or moving. The
 
   If one article blocks capture (paywall, bot wall), capture another article listed in facts.md. A headline-card pointer (`pointer.headline`, never a fake poster) is allowed only when no referenced article can be captured, with the attempts logged under "Visual fallbacks" in facts.md and `pointer.no_screenshot` set to the reason; one small disclosure line naming the AI voice, any AI illustrations and the sources. No silence after the final narration.
 
-**Summary panels on the end card.** The end card usually also restates what the reel established, so its last frame is a recap and then a next step: the figures the viewer just heard, readable at a glance or in a screenshot, then the article to read for the rest. Both go on one card. A separate summary shot before the end card splits the loop-back narration between two cards, and each is on screen too briefly to read.
-- **What goes on it.** `"summary": {"panels": [...]}` on the end-card shot. A panel is a figure (`value`, `label`, `source`), a distinction (`pair` of two halves, each `title` and `text`, such as what's confirmed and what isn't), or one of the charts below. Choose the figures the reel landed hardest (its stat shots, the concrete example), never new ones: a figure first met on the last card has no time to land. Every figure and wording comes from facts.md, at the source's strength.
-- **Charts, when the shape is the point.** A plain figure reads fastest, so use a chart only when the comparison is what the viewer should take away: a share strikingly small or large, or amounts to weigh against each other.
-  - **Proportion bar** (`"value": "<2%", "bar": 0.02, "label", "source"`): one share of a whole the viewer can picture ("of the country's daily gas demand"). The bar runs from 0 to 100% with "100%" printed at its end, so a small share looks small. A share too small to see still shows as a sliver.
-  - **Donut** (`"value": "86%", "donut": 0.86, "label", "source"`): the same idea in half a row, to sit beside a figure. The value must fit inside the ring (about 5 characters). It shows one share only; a ring this small can't carry a pie of several categories.
-  - **Compare bars** (`"compare": [{"label", "value", "amount"}, ...], "source"`): two or three amounts in the same unit (reported against confirmed, claimed against traced). The bars share one scale from zero, and each label fits on one line.
-
-  A chart makes a figure look more exact than a sentence does, so it must not overstate. The share or amount is the figure from facts.md, the same one the `value` shows. A bound ("<2%", "over 40%") is drawn at the bound and keeps its "<" or "over" in the value. Never compare amounts in different units or from sources that measure different things, and an estimate keeps its hedge in the label ("estimated", "analysts say"). Each chart fills in as its panel lands.
-- **What fits.** Figures and donuts go two to a row; a distinction, a proportion bar or a compare chart takes a whole row. Two rows fit above the pointer: for example four figures, two figures and one chart, or a chart and a distinction. Each panel has about 100px inside it, so keep labels to one short line (about 25 characters, e.g. "views of those posts"). The build shrinks text to fit and stops rather than clip it, naming the panel to shorten. The closing line is the card's title, and the disclosure line names the sources, so there is no separate title or footer.
-- **The pointer becomes a strip.** The panels leave the pointer 150–260px of height, so capture it as a wide strip (outlet name, headline and byline, about 1000px wide, no lead photo). A tall page screenshot shrinks to a thumbnail too small to read, and the build warns.
-- **Timing.** The pointer and disclosure line are on screen from the first frame. The panels come in one after another within the first 40% of the shot, then the finished card holds at least 0.4s per panel and never under 1.5s. A panel that lands just before the reel ends is never actually seen, so the loop-back narration must be long enough for the hold. The build stops with the numbers when it isn't, and `scripts/check_card_hold.py` measures the hold on the rendered reel.
-- **No instructions to the viewer.** The card never says what to do with it ("SAVE THIS", "screenshot to save" or similar) unless the user explicitly asks (`"allow_save_prompt": true`); the closing line already does that job.
-- **Without panels.** Leave the panels off when the story has no figures or distinctions worth restating. The end card is then closing line, pointer (lead photo allowed) and disclosure line, with no captions.
+**Summary panels on the end card.** The end card usually also restates the figures the reel landed hardest, on the same card as the pointer, never as a separate summary shot before it. Panel types, charts, what fits, the pointer as a strip, and the timing the build enforces are in `references/end-card.md`; read it before writing the end card.
 
 ## Build pitfalls (each one has broken a past build)
 
@@ -441,11 +330,7 @@ Reel progress:
 2. **Facts sheet.** Write `facts.md`: each claim with its status, its denial, the source and date for every figure and quote, and the careful distinction. For a developing story, add a timeline table (time with time zone, event, source) for the timeline section. Add a **tensions** table: every pair of facts that seem to pull against each other (a large number next to a small one, a confirmation next to a denial, "dangerous" next to "failed"), with the reason both hold and its source, or "no source gives a reason". The script bridges each pair that sits in adjacent or nearby beats (see "Bridge every contrast"). Cut anything that cannot be sourced. The verifier checks the reel against this file.
 3. **Script.** About 130–140 words for 55s. Keep every line at the source's strength: "impact" stays "impact" (not "lost"), "likely" stays "likely" (not "did it" or "blame"), "may be" stays "may be", estimates keep "about". Credit wording to whoever said it: news outlets are not "analysts". Re-check the whole transcript against facts.md every time a line changes, including trims to fit the length. Keep each claim's status (from facts.md) in its wording, not in a tag, and put each claim's counterpart (denial, confirmed figure, statement) in the same beat. Then read the script aloud against "Write like a person talking" (Tone and sourcing) and "Story shape", and check it with C13 and C16 in `references/verification-checklist.md`: rewrite failing lines and beat changes, recheck accuracy (C12), and repeat until all pass.
 4. **Shot list and assets.** Follow "Asset gathering" for every shot and fill the asset log in facts.md. How the work is split depends on the platform:
-   - **Helper agents.** If the platform can start them, they can run the web searches, read page text (which lists a page's image URLs) and download images (for example with `curl`). That lets the search be shared out. Each helper looks at what it downloads and reports back its asset log rows.
-   - **Screenshots need a live browser that can save an image file.** So does anything that needs clicking, scrolling or a set time zone, because a page fetch returns text and image URLs, not a rendered page. An agent with such a browser captures every screenshot: X posts, article pages and the end-card pointer. A downloaded article image is not a substitute for a page screenshot. Seeing the page is not enough: the build needs the file.
-   - **Ask for the file, not the capture.** When the browser is a separate agent or worker, it may take the screenshot for its own checking and send back only a text description, because files flow into it by default, not back out. So every screenshot request names the deliverable: the image file itself, returned to your workspace (or saved to the platform's shared file storage) under a filename you give, cropped to what the shot must show. A description of the page is not a screenshot. When the reply comes back, check the file exists and look at it before logging it.
-   - **Before relying on the browser**, test it once with one such file request on any page. If it returns no file, ask again more explicitly (as a file or artifact, or saved to shared storage under a name), and try any other route the platform offers (an element or full-page capture, or a page saved as PDF and rendered to PNG) before giving up.
-   - **If no agent has a live browser**, ask the user for the screenshots. Otherwise use a headline card for the end-card pointer, record why under "Visual fallbacks" in facts.md (D10 checks it), and say so at delivery.
+   How the work is split depends on the platform: helper agents for searching and downloading, a live browser that returns the screenshot file itself (not a description), and asking the user for screenshots when no agent has one. See "Platform: who gathers what" in `references/asset-gathering.md`.
 
    Set a `keep` box for every image. Capture the end card's pointer as a screenshot of a referenced article page (outlet name, headline, byline; relative times cropped out at capture, capture date recorded; a wide strip when the end card carries summary panels; see "End card"). Look at every asset once before writing the manifest.
 5. **Manifest and dry run.** Write the JSON manifest (see `examples/sample-manifest.json`) with `material` on every beat (entry in `scenes`). Run `python3 scripts/build_reel.py manifest.json --dry-run` to check timings and word count. It also prints the pace report (each shot's kind and how much of the frame a still covers, plus the time share of video, built and still shots). Fix every pace warning before building: swap a still for a clip or a stat, tighten a keep box, add a wipe at a section turn. Give the reason at delivery for any warning you keep. Then read only the headlines, in order, as a viewer with the sound off: each one should say who did what (see "Headlines"). Then read the story spine it prints (the hook's question and each section's opening line): it should tell the story by itself (see "Bridge every section change").
@@ -549,6 +434,10 @@ When asked to review or critique a reel (not build one):
 ## References
 
 - `references/verification-checklist.md`: the pass/fail items and commands used by the verifier.
+- `references/asset-gathering.md`: how every shot gets its visual: searching, choosing, the asset log, downloading, screenshots, and which agent gathers what. Read it at Workflow step 4.
+- `references/graphics-and-clips.md`: diagram details (a source's chain figure, the AI motion clip, gating an AI-animated diagram) and side-by-side composites of real clips.
+- `references/ai-video.md`: prompting Muse for AI video and bringing the clip into the build. Read it before the first generation.
+- `references/end-card.md`: the end card's summary panels and charts: what goes on, what fits, timing.
 - `references/reel-format.md`: the reference reel: its sections, visual grammar, how it moves, and measured benchmarks.
 - `references/msci-case-study.md`: the MSCI reel as a worked example: facts sheet, shot list, reusable build settings, and the defect behind each rule.
 - `references/php2shell-case-study.md`: a reel that passed every check yet played as a slideshow: what went wrong shot by shot, and what each fix looks like. Read it before planning shots.

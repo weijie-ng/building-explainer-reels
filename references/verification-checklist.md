@@ -121,7 +121,7 @@ Inspect the images themselves; do not infer them from the commands' output.
 - [ ] **D4 Representative visual and asset choice**: every shot has a visual; no shot shows only a headline on plain colour.
   - **Graphics.** FAIL if the reel has more than one diagram beat, one map or one timeline. An AI simulated spread over a world-map backdrop counts as the map only when it names or points at places. FAIL if any of them is used for a shot that isn't a chain of links, a location or the closing sequence of events.
   - **Asset log.** Every shot other than the diagram, map, timeline and end card needs a row in facts.md's asset log. FAIL a missing row, a row that doesn't show what each of places A–D gave, or a row with no reason for the choice.
-  - **Choices.** Check each choice against "Asset gathering" in SKILL.md. FAIL any of these, naming the shot:
+  - **Choices.** Check each choice against `references/asset-gathering.md`. FAIL any of these, naming the shot:
     - a related real image that is the evidence for its line, replaced by AI or a headline card;
     - a real image kept although it reads as stock, a reused logo or a repeat of nearby shots, when AI was allowed;
     - a headline card that could take a related image or an AI illustration.
