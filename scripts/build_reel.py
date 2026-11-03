@@ -32,6 +32,12 @@ without rebuilding the rest:
   hook     the hook's beats only (leading beats whose id starts with "hook",
            or the first beat): narration, shots, captions, audio ->
            <workdir>/hook/hook.mp4, then its length, word count and sync.
+  preview  with --through ID: the reel from its first beat up to and
+           including beat ID (narration, shots, captions, audio) ->
+           <workdir>/preview/preview.mp4. Only those beats are checked, so
+           later beats' assets need not exist yet, and the loop-back check
+           waits for the full reel. For building shot by shot with the user
+           (SKILL.md, "User in the loop"); cached like the other stages.
   shots    render every shot to <workdir>/shots/. Cached: a shot is
            re-rendered only when its manifest entry, timing or asset file
            changed. --beat ID re-renders just that beat; --force ignores the cache.
@@ -252,7 +258,7 @@ from reel_continuity import Continuity  # noqa: E402
 import reel_audio  # noqa: E402
 import check_sync  # noqa: E402
 
-STAGES = ("check", "narrate", "diagram-brief", "hook", "shots", "subs", "audio", "mux",
+STAGES = ("check", "narrate", "diagram-brief", "hook", "preview", "shots", "subs", "audio", "mux",
           "sync", "all")
 
 
@@ -289,6 +295,13 @@ class Build:
         self.args = args
         self.man = load_manifest(args.manifest)
         self.scenes = self.man["scenes"]
+        if getattr(args, "through", None):
+            # A preview: only the beats up to and including this one.
+            ids = [str(s.get("id")) for s in self.scenes]
+            if args.through not in ids:
+                sys.exit(f"Unknown beat id for --through: {args.through}")
+            self.scenes = self.scenes[:ids.index(args.through) + 1]
+            self.man = {**self.man, "loop_back": False}
         self.max_dur = args.max_duration or self.man.get("max_duration", 60)
         self.out = args.out or self.man.get("output", "reel.mp4")
         self.work = args.workdir or os.path.splitext(self.out)[0] + "_work"
@@ -778,6 +791,8 @@ def main():
                     help="run one stage (default: all). Stages reuse earlier stages' files in --workdir.")
     ap.add_argument("--beat", action="append", default=None,
                     help="with --stage shots: re-render only this beat (its id); repeatable")
+    ap.add_argument("--through", default=None,
+                    help="with --stage preview: build up to and including this beat (its id)")
     ap.add_argument("--force", action="store_true", help="ignore cached narration and shots")
     ap.add_argument("--out", default=None)
     ap.add_argument("--workdir", default=None)
@@ -788,6 +803,9 @@ def main():
     ap.add_argument("--allow-plain", action="store_true")
     args = ap.parse_args()
     stage = "check" if args.dry_run else args.stage
+    if (stage == "preview") != bool(args.through):
+        sys.exit("--stage preview and --through go together: "
+                 "--stage preview --through <beat id>.")
     b = Build(args)
     everything = list(range(len(b.scenes)))
 
@@ -823,7 +841,7 @@ def main():
             print(f"WARNING: {w}", file=sys.stderr)
         return 1 if total > b.max_dur else 0
 
-    b.check(need_tools=stage in ("narrate", "hook", "all"))
+    b.check(need_tools=stage in ("narrate", "hook", "preview", "all"))
 
     if stage == "diagram-brief":
         b.narrate(everything)
@@ -843,6 +861,24 @@ def main():
         ok = hook_report(b, hook, out, total)
         ok = check_sync.report(out, ass) and ok
         print("Review the hook before building the rest: --stage all reuses its narration and shots.")
+        return 0 if ok else 1
+
+    if stage == "preview":
+        b.narrate(everything)
+        plan, warnings = b.plan(len(b.scenes))
+        for w in warnings:
+            print(f"WARNING: {w}", file=sys.stderr)
+        n = b.render(plan, None)
+        folder = os.path.join(b.work, "preview")
+        out, ass, total = b.assemble(everything, folder, os.path.join(folder, "preview.mp4"), plan)
+        last = b.timeline[-1]
+        print(f"Built preview through beat {last['id']}: {out} ({n} shot(s) rendered)")
+        print(f"  beat {last['id']} runs {last['start']:.2f}-{last['start'] + last['dur']:.2f}s:")
+        for (i, j, sh, dur, name) in plan:
+            if i == last["i"]:
+                print(f"    shot {j + 1}: {dur:.2f}s")
+        ok = check_sync.report(out, ass)
+        print("Show the new beat's shots to the user before the next beat.")
         return 0 if ok else 1
 
     if stage in ("narrate", "all"):
