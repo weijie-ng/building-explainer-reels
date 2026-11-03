@@ -14,7 +14,7 @@ Build (or review) a short, checkable investigative explainer reel. The model is 
 - **Beat**: one narration line (one or more whole sentences) and its visuals, like one row of a two-column explainer script (voiceover left, visuals right). In the manifest a beat is one entry in `scenes`; the key keeps its old name so existing manifests still build. "Scene" in film means a unit of story in one place and time, which is why these docs don't use it. Caption phrases never cross a beat boundary.
 - **Shot**: one visual between two cuts (the film meaning). A beat has one or more shots (`shots` in the manifest). Shot lengths, motion and "one image per shot" are all counted per shot.
 - **Cut**: the instant one shot changes to the next; a hard cut on a narrated word, or a graphic wipe. A new beat always starts with a cut.
-- **Super change**: a new headline over the same visual. Editors wouldn't call it a cut, but the build renders it as a new shot (a separate `shots` entry), so it counts as a shot for shot length (1–3s) and "one image per shot" allows the repeat. The visual carries on across the cut (the same clip frame, zoom, highlight, events and ✗), because the build treats shots that continue one visual as a run (see Build pitfalls); a different visual is a hard cut that starts its own motion.
+- **Super change**: a new headline over the same visual. Editors wouldn't call it a cut, but the build renders it as a new shot (a separate `shots` entry), so it counts as a shot for shot length (mostly 2–5s) and "one image per shot" allows the repeat. The visual carries on across the cut (the same clip frame, zoom, highlight, events and ✗), because the build treats shots that continue one visual as a run (see Build pitfalls); a different visual is a hard cut that starts its own motion.
 - **Frame**: one video frame (1/30 s). "The frame" also means the whole 720×1280 picture: an image that "fills the frame" covers all of it. "On screen" just means visible to the viewer; "screen" is not a unit.
 - **Hook**: the opening beat or beats, 0–7s: the leading beats whose `id` starts with `hook`, or else the first beat. **End card**: the last shot (closing line, pointer, disclosure line).
 
@@ -78,7 +78,7 @@ Under 60 seconds by default (about 130–140 words for 55s). If the user asks fo
 6. **Timeline (optional, for developing stories).** Just before the end card, a timeline of the key events with times and sources, so the viewer leaves with the sequence straight. Every event must come from facts.md. Two shots of three events each, about 4–5s per shot, so each line can be read.
 7. **Funnel ending.** One end card on the background blue: a closing line that fits the story (for example "Check before you share" for disinformation, or "This story is still developing" for breaking news), up to four summary panels restating the figures and distinctions the reel landed, a screenshot of the full article as the pointer, and one disclosure line (see "End card"). It reads as a recap, then a next step: the panels pay off what the viewer just watched, and the pointer tells them where to read the rest.
 
-   **Loop-back: ask, then answer.** The final narration echoes the hook's open question or promise, worded to match the hook, and pays it off with a short answer at the sources' strength: "So where did the money go? Most of it, analysts say, is still moving." A shortened echo is fine. Repeating the question with no answer ends on a to-do list instead of the story ("Patch, then check back… So what got hacked?"). The echo and answer still lead back into the hook when the reel replays. The end card runs for that whole narration, like a headline card or timeline shot, even past 4s, as long as its text stays readable. Adding it lengthens the reel: check the total against the limit afterwards (the build prints it), fit it as in "Fit the length" (the loop-back may use its short echo), and say at delivery if the total still exceeds the limit. The build rejects a reel whose last two sentences don't echo most of the hook's question or promise; set `"loop_back": false` only if the user asks for a different ending.
+   **Loop-back: ask, then answer.** The final narration echoes the hook's open question or promise, worded to match the hook, and pays it off with a short answer at the sources' strength: "So where did the money go? Most of it, analysts say, is still moving." A shortened echo is fine. Repeating the question with no answer ends on a to-do list instead of the story ("Patch, then check back… So what got hacked?"). The echo and answer still lead back into the hook when the reel replays. The end card runs for that whole narration, even past the 6s shot limit, as long as its text stays readable. Adding it lengthens the reel: check the total against the limit afterwards (the build prints it), fit it as in "Fit the length" (the loop-back may use its short echo), and say at delivery if the total still exceeds the limit. The build rejects a reel whose last two sentences don't echo most of the hook's question or promise; set `"loop_back": false` only if the user asks for a different ending.
 
 ### Story shape: a story, not a list of facts
 
@@ -200,7 +200,7 @@ Allowed moves:
 Rules:
 - Real clips get no added zoom. AI clips keep their own motion and are never zoomed or panned further.
 - Fast moves (wipes, slide-ins, pops) last 0.6s or less, except a wipe of up to 1.5s and camera zooms on graphics. After any move, the shot settles into creep. Never stack two fast moves at once.
-- Shots are 1–3s, never over 4s (headline cards and timeline shots up to 5s; the end card runs for the loop-back narration).
+- Shots are mostly 2–5s and never over 6s (headline cards and timeline shots included; the end card runs for the loop-back narration). A quick cut under 2s is fine, as in a clip montage or composite. A still image shot is never over 4s, an AI still never over 3s.
 - **Stillness cap:** at most 50% of the reel's frames may be fully still (measured as in the checklist, B8). A static slideshow fails even if every shot is well designed.
 
 **Play as a video, not a slideshow.** The stillness cap is not enough: a 2% creep counts as motion, so a reel of still pictures passes it, even with stills on most of its time, the same headline-over-small-picture layout in nearly every shot, one photo in four shots, and nothing on screen acting out a line. What makes a reel feel like video is shots that do something: a clip with its own action, or a graphic that builds on the word. The build's pace report (printed at the dry run and after the build, from `scripts/reel_pace.py`) measures this; treat each warning as a fix to make, or a reason to give at delivery:
@@ -254,7 +254,7 @@ A find counts only when it is **related**: it shows the people, organisations, p
 - **Headline card**, only when no real find works and AI can't show the line. It is the weakest shot (a headline on plain blue); at most 2 per reel, not counting the end card.
 
 **3. Check the reel as a whole.**
-- Something on screen changes every 2–4s: a cut, a move, a highlight, or a node or graphic build.
+- Something on screen changes every 2–6s: a cut, a move, a highlight, or a node or graphic build.
 - Shot types take turns. Never three similar images in a row, no subject in more than two shots, and no two text screenshots back to back.
 - If most shots show one logo, look for photos of the people, places or objects in the story instead.
 - Run the dry run and read its pace report (see "Play as a video, not a slideshow") before generating or capturing anything more: it is far cheaper to swap a planned still for a clip or a stat now than after the build.
@@ -362,10 +362,10 @@ Subject and style are open: flat illustration or photoreal, still or moving. The
   - **When the message is false**, the narration says so in the same beat, and the visual never sits under a line that presents the message as true.
   - **A simulated post is never evidence.** When the reel needs to show what was actually posted, use the real post: a screenshot, its clip, or a side-by-side composite of real clips (see "Real clips"). Simulated posts carry the AI label, not the DISINFORMATION POST tag, which is for real false material.
 - **No readable text in generated frames**, except on simulated posts and feeds (rules above). All other words are added by the build.
-- **Short, labelled and muted.** Each AI still is ≤3s and each AI video ≤4s, labelled. Real receipts stay on screen longer than illustrations.
+- **Short, labelled and muted.** Each AI still is ≤3s and each AI video ≤6s, labelled. No AI shot runs longer than the real receipt for the same claim; a still receipt is capped at 4s, so a claim that needs longer on its evidence gets a real clip or a second receipt, not a longer illustration.
 - **A scene with one purposeful action, not an icon.** Flat clip-art (a server icon, a shield, a padlock on a plain background) looks like a slide graphic and tells the viewer nothing the headline doesn't. Ask for an illustrative scene with depth and light, and one physical action that acts out the line: a vault door unlatching for "without logging in", one cube after another turning red for "chained to full control", a key failing in a lock for "exploits had to be tuned to each target". Metaphors like these keep it clearly an illustration, never footage of the real event.
 
-  **Making AI video move with purpose.** Generate the still first, look at it, then animate it with Muse as the start frame. Write the prompt as: start frame, one camera move, one action that acts out the line, and constraints. Ask for 5s so a clean 3–4s can be trimmed with `clip_start`/`clip_end`. Templates:
+  **Making AI video move with purpose.** Generate the still first, look at it, then animate it with Muse as the start frame. Write the prompt as: start frame, one camera move, one action that acts out the line, and constraints. Ask for at least 1s more than the shot needs (5s for a shot up to 4s) so a clean take can be trimmed with `clip_start`/`clip_end`. Templates:
   - Access or breach: "A heavy vault door in a dark server corridor, blue light. Slow dolly forward as the door unlatches and swings open, light spilling out. One motion only. No people, text or logos. Keep the subject centred, no morphing, no scene change. 9:16."
   - Chain or spread: "Five identical glass cubes in a row on a dark floor. The first glows red, then a thin beam of light travels to the next and it turns red, one after another. Camera fixed. No text. No morphing. 9:16."
   - Defence holds: "Macro shot of a brass pin-tumbler lock. A key slides in and fails to turn, then a second key fails. Camera pushes in slowly. No text. 9:16."
@@ -377,7 +377,7 @@ Subject and style are open: flat illustration or photoreal, still or moving. The
 
   **Bringing in an AI video from Muse.** Muse saves the generated video as an mp4; put it in the assets folder and reference it like any clip: `"clip": "ai_frozen_funds.mp4", "material": "ai"`. Ask Muse for:
   - **9:16, 720×1280**, so nothing is cropped. Any other shape is cropped to fill the frame, around the clip's `keep` box (fractions of the frame, as for images), or the centre without one; the build warns when an AI clip isn't 9:16.
-  - **At least as long as its shot** (3–5s). A shorter clip would hold its last frame, a freeze, and the build warns; use `clip_start` to pick the best part of a longer one.
+  - **At least as long as its shot** (up to 6s). A shorter clip would hold its last frame, a freeze, and the build warns; use `clip_start` to pick the best part of a longer one.
   - **No text, logos or watermark** in the frame, except post text on a simulated feed (see the rules above). If one appears anyway, cover it with `clip_mask` or regenerate.
   - **For a simulated feed or wall of posts**, still ask for 9:16, with the posts large enough to fill the frame. A 16:9 grid cropped to 9:16 keeps only about two columns and loses the sense of many accounts.
 
@@ -467,7 +467,7 @@ Reel progress:
    - the timeline (`timeline`: events with time, text and source, revealed one at a time);
    - real clips with `clip_mask` delogo boxes, plus AI clips;
    - the end card with pointer and disclosure line, and its summary panels brought in within the first 40% of the shot, the build stopping if the finished card would show for less than its hold, and `scripts/check_card_hold.py` measuring that hold on the rendered reel;
-   - multi-shot beats (`shots`): one narration line cut into several shots, so lines stay whole sentences while shots stay 1–3s;
+   - multi-shot beats (`shots`): one narration line cut into several shots, so lines stay whole sentences while shots stay mostly 2–5s;
    - narration silence trimmed and pauses capped, so no gap exceeds 0.3s;
    - diagram nodes timed to the words that name them (the same measured word times as the captions);
    - exact 30 fps frame counts.

@@ -463,11 +463,11 @@ class Build:
                     self.no_caption.append((b["start"] + bounds[j] / FPS,
                                             b["start"] + bounds[j + 1] / FPS))
                 where = f"beat {s.get('id')} shot {j + 1}"
-                ai_cap = 4.0 if sh.get("clip") else 3.0
+                ai_cap = 6.0 if sh.get("clip") else 3.0
                 if sh.get("material") == "ai" and shot_dur > ai_cap + 1 / FPS:
                     warnings.append(f"{where}: AI shot runs {shot_dur:.2f}s; the spec caps AI "
                                     f"{'video' if sh.get('clip') else 'stills'} at {ai_cap:.0f}s.")
-                limit = 5.0 if any(sh.get(k) for k in ("card", "timeline", "end_card", "summary")) else 4.0
+                limit = 4.0 if shot_kind(sh) == "still" else 6.0   # a still image shot stays <= 4s
                 if b["i"] == len(self.scenes) - 1 and (sh.get("end_card") or sh.get("summary")):
                     # The end card runs for the loop-back narration, however
                     # long; its text must stay readable (checked by eye).

@@ -19,7 +19,7 @@ Usage:
 
 spec.json:
   {
-    "duration": 3.0,                  // the shot's length (s); shots stay <= 4s
+    "duration": 3.0,                  // the shot's length (s); shots stay <= 6s
     "label": "TRACED EXAMPLES • 28 OCT 2026",   // the one source label for the set
     "layout": "auto",                 // "grid" (2 columns), "row" (1 x N) or "auto"
     "stagger": 0.3,                   // s between tiles appearing; 0 = all at once
@@ -61,7 +61,7 @@ AVATAR = 30         # avatar diameter
 NAME_SIZE = 22      # account name size; shrinks to NAME_MIN to fit, never truncated
 NAME_MIN = 14
 FADE = 0.2          # each tile fades in over this long
-MAX_SHOT = 4.0      # SKILL.md: shots are never over 4s
+MAX_SHOT = 6.0      # SKILL.md: shots are never over 6s
 
 
 def fail(msg):
