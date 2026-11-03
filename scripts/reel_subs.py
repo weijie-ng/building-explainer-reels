@@ -193,7 +193,39 @@ def edit_distance(a, b):
 SEC_PER_LETTER = 0.07
 
 
-def match_words(script, tokens, notes=None):
+SNAP_PAUSE = 0.12   # s; a silence this long between words is a real pause
+SNAP_DB = -35       # dB, after SNAP_HIGHPASS: speech vs silence (as check_sync)
+SNAP_HIGHPASS = 300 # Hz; drops any music or hum under the voice (as check_sync)
+SNAP_LIMIT = 0.5    # s; furthest a word's start is moved to where the voice resumes
+
+
+def snap_to_speech(starts, ends, segs, limit=SNAP_LIMIT):
+    """Start the first word after each pause where the voice actually resumes.
+
+    Whisper's start for a word that follows a pause is unreliable: it often
+    starts the word where the previous one ended, across the pause
+    ("operator, | so" put "so" 0.48s before it was said), and a beat's first
+    word it missed is only estimated. The speech onset measured from the
+    audio (`segs`, from speech_segments) is not a guess. Each onset takes the
+    first word not yet placed whose end is after it, when that word's start
+    is within `limit` of it (an onset with no word that near, such as a
+    sound under no caption, places nothing). Words mid-phrase keep
+    Whisper's times."""
+    out, k = list(starts), 0
+    for onset, _ in segs:
+        while k < len(out) and ends[k] <= onset:
+            k += 1
+        if k >= len(out):
+            break
+        if abs(out[k] - onset) <= limit:
+            out[k] = onset
+            k += 1
+    for i in range(1, len(out)):
+        out[i] = max(out[i], out[i - 1] + 0.02)
+    return out
+
+
+def match_words(script, tokens, notes=None, ends=None):
     """Start time of every script word, from Whisper tokens.
 
     Split figure tokens are merged back first ("$6" + ".3" -> "$6.3",
@@ -215,10 +247,14 @@ def match_words(script, tokens, notes=None):
     Anything else raises ValueError at the first word that doesn't match,
     because a caption must show exactly what was said: a dropped or
     changed word mid-beat, a changed common word, a second missed word,
-    extra words."""
+    extra words.
+
+    If `ends` is a list, it is filled with each word's end time (for
+    snap_to_speech)."""
     words = script.split()
     toks = [(s, e, norm_word(t), t) for s, e, t in tokens if norm_word(t)]
     starts, i, j = [None] * len(words), 0, 0
+    word_ends = [None] * len(words)
     first = next((k for k, w in enumerate(words) if norm_word(w)), None)
     skipped = False
     notes = notes if notes is not None else []
@@ -285,6 +321,7 @@ def match_words(script, tokens, notes=None):
             if nxt is not None and (span(nxt, j) or near_name(nxt, j)):
                 skipped = True
                 starts[i] = max(0.0, toks[j][0] - SEC_PER_LETTER * len(a))
+                word_ends[i] = toks[j][0]
                 notes.append(f"first word {words[i]!r} not heard by Whisper; placed at "
                              f"{starts[i]:.2f}s, just before {toks[j][3]!r}. Check by ear "
                              "that the voice says it")
@@ -304,6 +341,7 @@ def match_words(script, tokens, notes=None):
         for k in si:
             starts[k] = t0 + (t1 - t0) * acc / total
             acc += len(norm_word(words[k]))
+            word_ends[k] = t0 + (t1 - t0) * acc / total
         i, j = i + 1, j + 1
     if j < len(toks):
         extra = " ".join(t[3] for t in toks[j:j + 6])
@@ -312,6 +350,9 @@ def match_words(script, tokens, notes=None):
     for k in range(len(starts)):
         if starts[k] is None:
             starts[k] = starts[k - 1] if k else 0.0
+            word_ends[k] = word_ends[k - 1] if k else 0.0
+    if ends is not None:
+        ends[:] = word_ends
     return starts
 
 

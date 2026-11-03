@@ -19,13 +19,20 @@ Checks (each PASS or FAIL, with the times that fail):
   S3 Lingering   no caption phrase stays up over 0.6s of silence (a pause, or
                  a caption left up after the voice stopped).
   S4 Clause sync every phrase change at the end of a clause (after , . ; :
-                 ? !) falls in the voice's pause there, within 0.25s. A change
-                 with no pause within 1s is listed, not failed.
+                 ? !) falls in the voice's pause there, within 0.25s. With
+                 Whisper, "there" is the pause just before the new phrase's
+                 first spoken word, so a change that lands in the pause after
+                 that word (shown late) fails; without it, the nearest pause.
+                 A change with no pause within 1s is listed, not failed.
   S5 Word sync   needs faster-whisper or openai-whisper: every caption word
                  is revealed within 0.3s of being spoken (about 0.2s of
                  Whisper drift is normal), and caption words the recogniser
                  never heard are listed (a word TTS may have dropped or
-                 slurred; check by ear).
+                 slurred; check by ear). The first word after each pause is
+                 timed from where the voice resumes in the audio, not from
+                 Whisper, which often starts it at the previous word's end
+                 (the build has the same blind spot, so both would agree on
+                 a wrong time).
   S6 Anchoring   every caption word keeps one position for as long as its
                  phrase is up (it changes colour, never place), and no two
                  words of a phrase overlap.
@@ -42,7 +49,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from reel_common import FPS, run, probe_duration  # noqa: E402
 from reel_subs import (speech_segments, read_ass, read_ass_words,  # noqa: E402
-                       read_no_caption, whisper_words)
+                       read_no_caption, whisper_words, snap_to_speech)
 
 HIGHPASS = 300          # Hz; removes the music bed (sine pads under 400 Hz)
 THRESHOLD = -35         # dB; speech vs the filtered remainder
@@ -165,16 +172,62 @@ def check(reel, subs):
     results.append(("S3", "Lingering", not bad,
                     "no caption over silence" if not bad else "; ".join(bad)))
 
+    # S5 word sync: matched first, so S4 can use when each phrase is spoken
+    cap_words = read_ass_words(subs)
+    heard = whisper_words(reel)
+    said = {}                         # caption word index -> time it is spoken
+    if heard is None:
+        s5_result = ("S5", "Word sync", None,
+                     "not run: install faster-whisper or openai-whisper for word-level timing")
+    else:
+        import difflib
+        heard = [(s, e, norm(w)) for s, e, w in heard if norm(w)]
+        snapped = snap_to_speech([h[0] for h in heard], [h[1] for h in heard], segs)
+        heard = [(t, e, w) for t, (_, e, w) in zip(snapped, heard)]
+        ours = [norm(w) for _, w, _ in cap_words]
+        sm = difflib.SequenceMatcher(a=ours, b=[w for _, _, w in heard], autojunk=False)
+        bad = []
+        for blk in sm.get_matching_blocks():
+            for k in range(blk.size):
+                i, t = blk.a + k, heard[blk.b + k][0]
+                said[i] = t
+                off = cap_words[i][0] - t
+                if abs(off) > WORD_TOL:
+                    bad.append(f"{cap_words[i][1]!r} shows {cap_words[i][0]:.2f}s, spoken {t:.2f}s "
+                               f"({'early' if off < 0 else 'late'} by {abs(off):.2f}s)")
+        missing = [cap_words[i][1] for i in range(len(cap_words)) if i not in said and ours[i]]
+        detail = f"{len(said)}/{len(cap_words)} caption words matched to speech"
+        if bad:
+            detail += ("; off by more than 0.3s (nudge just these words with caption_nudge): "
+                       + "; ".join(bad))
+        if missing:
+            detail += ("; not matched (split figures such as $6.3 often land here; check by ear): "
+                       + ", ".join(missing[:20]))
+        s5_result = ("S5", "Word sync", not bad, detail)
+    # phrase start (its first word's reveal) -> when that word is spoken
+    first_spoken = {}
+    for i, (t, _, _) in enumerate(cap_words):
+        if i in said and (i == 0 or cap_words[i - 1][2] != cap_words[i][2]):
+            first_spoken[round(t, 2)] = said[i]
+
     # S4 clause sync
     rows, worst, fails, unmatched = [], 0.0, [], []
     for (e0, e1, text), (n0, _, ntext) in zip(events, events[1:]):
         if abs(e1 - n0) > 0.05 or text.rstrip()[-1:] not in ",.;:?!":
             continue          # not a clause-end change (or a gap between events)
-        near = [p for p in pauses if p[1] >= n0 - CLAUSE_SEARCH and p[0] <= n0 + CLAUSE_SEARCH]
+        sp = first_spoken.get(round(n0, 2))
+        if sp is not None:
+            # the pause the voice takes just before the phrase's first word
+            near = [p for p in pauses if abs(p[1] - sp) <= CLAUSE_SEARCH]
+            pick = lambda p: abs(p[1] - sp)                      # noqa: E731
+        else:
+            near = [p for p in pauses if p[1] >= n0 - CLAUSE_SEARCH and p[0] <= n0 + CLAUSE_SEARCH]
+            pick = lambda p: (0 if p[0] - 0.1 <= n0 <= p[1] + 0.1     # noqa: E731
+                              else min(abs(n0 - p[0]), abs(n0 - p[1])))
         if not near:
             unmatched.append(f"{n0:.2f}s before {ntext!r}")
             continue
-        p = min(near, key=lambda p: 0 if p[0] - 0.1 <= n0 <= p[1] + 0.1 else min(abs(n0 - p[0]), abs(n0 - p[1])))
+        p = min(near, key=pick)
         off = 0.0 if p[0] - 0.1 <= n0 <= p[1] + 0.1 else (n0 - p[1] if n0 > p[1] else n0 - p[0])
         rows.append((n0, ntext, off, p))
         worst = max(worst, abs(off))
@@ -188,35 +241,7 @@ def check(reel, subs):
         detail += f"; no pause found near {len(unmatched)} change(s): " + ", ".join(unmatched)
     results.append(("S4", "Clause sync", not fails, detail))
 
-    # S5 word sync
-    cap_words = read_ass_words(subs)
-    heard = whisper_words(reel)
-    if heard is None:
-        results.append(("S5", "Word sync", None,
-                        "not run: install faster-whisper or openai-whisper for word-level timing"))
-    else:
-        import difflib
-        heard = [(s, e, norm(w)) for s, e, w in heard if norm(w)]
-        ours = [norm(w) for _, w, _ in cap_words]
-        sm = difflib.SequenceMatcher(a=ours, b=[w for _, _, w in heard], autojunk=False)
-        matched, bad = set(), []
-        for blk in sm.get_matching_blocks():
-            for k in range(blk.size):
-                i, t = blk.a + k, heard[blk.b + k][0]
-                matched.add(i)
-                off = cap_words[i][0] - t
-                if abs(off) > WORD_TOL:
-                    bad.append(f"{cap_words[i][1]!r} shows {cap_words[i][0]:.2f}s, spoken {t:.2f}s "
-                               f"({'early' if off < 0 else 'late'} by {abs(off):.2f}s)")
-        missing = [cap_words[i][1] for i in range(len(cap_words)) if i not in matched and ours[i]]
-        detail = f"{len(matched)}/{len(cap_words)} caption words matched to speech"
-        if bad:
-            detail += ("; off by more than 0.3s (nudge just these words with caption_nudge): "
-                       + "; ".join(bad))
-        if missing:
-            detail += ("; not matched (split figures such as $6.3 often land here; check by ear): "
-                       + ", ".join(missing[:20]))
-        results.append(("S5", "Word sync", not bad, detail))
+    results.append(s5_result)
 
     # S6 anchoring
     moved, n = anchoring(subs)

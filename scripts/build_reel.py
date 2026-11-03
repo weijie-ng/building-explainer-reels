@@ -23,7 +23,8 @@ without rebuilding the rest:
   diagram-brief  for each diagram shot: a text-free start frame and a Muse
            prompt for an AI motion clip, with the length it needs ->
            <workdir>/diagram_brief/. Set diagram.motion_clip to the result.
-  narrate  TTS or supplied audio, silence trim, Whisper word timing ->
+  narrate  TTS or supplied audio, silence trim, Whisper word timing (the
+           first word after each pause starts where the voice resumes) ->
            sceneN.wav, timeline.json. Stops if what Whisper hears doesn't match
            the script word for word (a name off by a letter or a missed
            first word only warns; see reel_subs.match_words). Cached per beat: unchanged narration is
@@ -239,7 +240,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from reel_common import *  # noqa: E402,F401,F403
 from reel_subs import (WHISPER_MODEL, whisper_words, match_words, apply_nudges, phrase_times,  # noqa: E402
-                       caption_events, write_ass)
+                       caption_events, write_ass, speech_segments, snap_to_speech,
+                       SNAP_PAUSE, SNAP_DB, SNAP_HIGHPASS)
 from reel_manifest import (load_manifest, validate, check_tools, expand_shots,  # noqa: E402
                            hook_indices, story_spine, sentences)
 from reel_render import (render_shot, source_label, diagram_plate, header_bottom,  # noqa: E402
@@ -359,7 +361,7 @@ class Build:
         figures take far longer to say than plain words. Stops if the
         words heard don't match the script word for word."""
         cache = wav + ".words.json"
-        ckey = digest([key, WHISPER_MODEL])
+        ckey = digest([key, WHISPER_MODEL, "snap-to-speech"])
         try:
             with open(cache, encoding="utf-8") as f:
                 c = json.load(f)
@@ -374,14 +376,18 @@ class Build:
         if tokens is None:
             sys.exit("No Whisper package: pip install faster-whisper (captions are timed "
                      "from the voice).")
-        notes = []
+        notes, ends = [], []
         try:
-            starts = match_words(narration, tokens, notes)
+            starts = match_words(narration, tokens, notes, ends)
         except ValueError as e:
             sys.exit(f"beat {s.get('id')}: the narration audio doesn't match the script: {e}\n"
                      "Listen to it: if the voice dropped or changed a word, re-run narrate "
                      "(--force); if the script spells a figure differently from how it is "
                      "said, write it the way it is said.")
+        # Whisper's start for the first word after a pause is unreliable
+        # (often the previous word's end); take it from the audio instead.
+        segs = speech_segments(wav, SNAP_DB, SNAP_PAUSE, SNAP_HIGHPASS)
+        starts = snap_to_speech(starts, ends, segs)
         for n in notes:
             print(f"WARNING: beat {s.get('id')}: {n}", file=sys.stderr)
         with open(cache, "w", encoding="utf-8") as f:
