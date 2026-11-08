@@ -309,7 +309,7 @@ Subject and style are open: flat illustration or photoreal, still or moving. The
 
   What it points to can be a news article, a government statement or a research report, as long as it is listed in facts.md. The photo is never the false material the reel debunks (a fake poster used as the article's lead image, say): leave `photo` out and the card shows a tile with the outlet's name in the reel's colour instead. No logos or outlet colours go on the card. `python3 scripts/fetch_preview.py <article url>` fills the block from the page's own metadata and downloads its share image; when a site blocks the fetch (paywall, bot wall), fill the fields by hand from the page text. On an end card without summary panels it is the full card, with the photo across the top; with panels, the compact card, with the photo on the left (details in `references/end-card.md`). Then one small disclosure line naming the AI voice, any AI illustrations and the sources. No silence after the final narration.
 
-**Summary panels on the end card.** The end card usually also restates the figures the reel landed hardest, on the same card as the pointer, never as a separate summary shot before it. Panel types, charts, what fits, the pointer as a strip, and the timing the build enforces are in `references/end-card.md`; read it before writing the end card.
+**Summary panels on the end card.** The end card usually also restates the figures the reel landed hardest, on the same card as the pointer, never as a separate summary shot before it. Panel types, charts, what fits, the pointer's compact card, and the timing the build enforces are in `references/end-card.md`; read it before writing the end card.
 
 ## Build pitfalls (each one has broken a past build)
 

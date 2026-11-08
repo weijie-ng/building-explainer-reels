@@ -611,7 +611,7 @@ def render_timeline(scene, dur):
 
 # The end card's vertical rhythm, tight enough that the full card's tallest
 # top block (16:9) fits under a two-line closing line with a two-line
-# disclosure (tests/test_end_card_layout.py).
+# disclosure.
 END_POINTER_TOP_GAP = 28    # px between the closing line and the preview card
 POINTER_READ_GAP = 20       # px between the preview card and its "READ THE FULL STORY" line
 POINTER_READ_H = 40         # the "READ THE FULL STORY" line, at its usual one line

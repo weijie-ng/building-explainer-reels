@@ -11,12 +11,17 @@ source. The title is the article's headline word for word: it shrinks, the
 card grows, or the build stops; it is never shortened or clipped.
 """
 
+from functools import lru_cache
 from urllib.parse import urlparse
 
 from reel_common import *  # noqa: F401,F403
 
+# The compact card searches heights, so fonts are reused rather than reloaded.
+font = lru_cache(maxsize=None)(font)  # noqa: F405
+
 CARD_W = 640                 # the card spans the frame's content width (x 40-680)
 COMPACT_H = 150              # the compact card's least height
+COMPACT_MAX_H = 360          # it never grows past this (the end card's layout stops well before)
 FULL_RATIOS = (16 / 9, 1.91)     # the full card's photo shape, narrowest to widest (w / h)
 COMPACT_RATIOS = (1.0, 1.91)     # the compact card's photo shape
 FULL_TILE_H = 360            # the full card's no-photo block (16:9 at 640 wide)
@@ -178,17 +183,33 @@ def _compact_card(p):
     from PIL import Image, ImageDraw
     d = ImageDraw.Draw(Image.new("RGB", (8, 8)))
     img = _photo(p)
-    slot_w = round(COMPACT_H * clamp_ratio(img.width, img.height, *COMPACT_RATIOS)) \
+    base_w = round(COMPACT_H * clamp_ratio(img.width, img.height, *COMPACT_RATIOS)) \
         if img else COMPACT_H
-    col_x = slot_w + 18
-    col_w = CARD_W - 18 - col_x
-    dom = _small_lines(d, pointer_domain(p["url"]), REG, 15, col_w)
-    meta = _small_lines(d, f"{p['outlet']} · {p['date']}", REG, 15, col_w)
-    fixed = 14 + dom[2] * len(dom[1]) + 5 + 6 + meta[2] * len(meta[1]) + 14
-    title = _title_lines(d, p["title"], col_w, list(range(24, 16, -1)),
-                         lambda sz, lines: fixed + sz * 1.2 * len(lines) <= COMPACT_H)
-    body_h = fixed + title[2] * len(title[1])
-    h = max(COMPACT_H, round(body_h))
+    # The smallest card height at which the title fits. The photo slot is
+    # never narrower than the card is tall, so when the card grows the tile
+    # stays square and a photo is cropped no narrower than 1:1 (the slot
+    # widening narrows the text column, which the search accounts for).
+    for h in range(COMPACT_H, COMPACT_MAX_H + 1):
+        slot_w = max(base_w, h)
+        col_x = slot_w + 18
+        col_w = CARD_W - 18 - col_x
+        dom = _small_lines(d, pointer_domain(p["url"]), REG, 15, col_w)
+        meta = _small_lines(d, f"{p['outlet']} · {p['date']}", REG, 15, col_w)
+        fixed = 14 + dom[2] * len(dom[1]) + 5 + 6 + meta[2] * len(meta[1]) + 14
+        f_min = font(BOLD, 17)
+        lines = wrap(d, p["title"], f_min, col_w)
+        if h > COMPACT_H and (not _fits(d, lines, f_min, col_w)
+                              or fixed + 17 * 1.2 * len(lines) > h):
+            continue        # not even the smallest size fits at this height
+        title = _title_lines(d, p["title"], col_w, list(range(24, 16, -1)),
+                             lambda sz, lines: fixed + sz * 1.2 * len(lines) <= h)
+        body_h = fixed + title[2] * len(title[1])
+        if body_h <= h:
+            break
+    else:
+        raise RuntimeError(f"pointer title is too long for the compact card even at "
+                           f"{COMPACT_MAX_H}px tall; leave the summary panels off so the end "
+                           "card uses the full card.")
     card = Image.new("RGB", (CARD_W, h), WHITE)
     card.paste(cover_at(img, slot_w, h, p.get("keep")) if img
                else _tile(slot_w, h, p["outlet"], 38), (0, 0))
