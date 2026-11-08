@@ -59,6 +59,10 @@ Manifest (see examples/sample-manifest.json):
   "loop_back": true,               // one of the last two sentences echoes the hook's question
   "sfx": true,                     // generated low hit when a stat lands (false: none)
   "allow_save_prompt": false,      // true only if the user asked for "save this"
+  "background": {"preset": "posts"},  // the story background behind every shot
+                                   // that would be plain blue: posts | network |
+                                   // pipeline | ticker | papers | custom (see
+                                   // reel_background.py, references/background.md)
   "scenes": [{
     "id": "hook",
     "narration": "A market crash. A made-up meeting.",
@@ -132,8 +136,8 @@ Scene types:
   "source": "PHP ADVISORY • 21 OCT 2026", "motion_clip": "...", "clip_start": 0,
   "at": 0.4}. One sourced figure, big, with its label, landing on the word
   that says it (or "at" seconds): a plain number counts up, anything else
-  ("0 of 5", "21 OCT") pops in. Over the reel blue, or over an AI motion
-  clip like the diagram. Use material "recreated".
+  ("0 of 5", "21 OCT") pops in. Over the story background, or over an AI
+  motion clip like the diagram. Use material "recreated".
 - Maps are not drawn here: generate one with Muse and pass it as "clip" or
   "image" with "material": "ai" and "schematic": true (SKILL.md, "Map").
 - timeline: {"events": [{"time": "29 OCT 20:05", "text": "...",
@@ -174,7 +178,11 @@ wins):
   sweep is timed from the beat's measured word times when the key sentence is in
   the narration. On top of that: the card highlight sweep and the diagram reveal and X. Real clips get no added zoom; AI clips keep
   their own motion. "move" adds a push, pan or inset to a still image (the
-  hook needs a clip or a moving image). "wipe" on a shot opens it with a
+  hook needs a clip or a moving image). Shots that would show plain blue
+  (headline cards without an image, stats without a motion clip, the timeline,
+  the end card, the space around an inset) are drawn over the manifest's
+  "background", which moves on reel time and carries on across cuts; without
+  one, the dry run warns. "wipe" on a shot opens it with a
   graphic wipe (a blue panel with yellow edges crossing the frame in 0.5s,
   under the captions). Slide-ins and particle overlays from SKILL.md's
   motion table are not generated here; make them as clips and pass them in.
@@ -255,6 +263,7 @@ from reel_render import (render_shot, source_label, diagram_plate, header_bottom
                          captioned)
 from reel_pace import pace_report, print_table, shot_kind, coverage  # noqa: E402
 from reel_continuity import Continuity  # noqa: E402
+from reel_background import uses_background  # noqa: E402
 import reel_audio  # noqa: E402
 import check_sync  # noqa: E402
 
@@ -522,6 +531,10 @@ class Build:
                     hold_errors.append(f"{where}: the end card runs {shot_dur:.2f}s; it needs "
                                        f"{END_CARD_HOLD_MIN}s. Raise its weight.")
                 t_shot = b["start"] + bounds[j] / FPS
+                if self.man.get("background") and uses_background(sh):
+                    # Drawn over the story background, which runs on reel time.
+                    sh["_background"] = self.man["background"]
+                    sh["_reel_start"] = round(t_shot, 4)
                 if sh.get("stat"):
                     self.cues.append(("hit", t_shot + stat_time(sh, shot_dur), b["i"]))
                 plan.append((b["i"], j, sh, shot_dur, f"scene{b['i']}_{j}"))
@@ -549,8 +562,8 @@ class Build:
             keys.append(digest([{k: v for k, v in sh.items() if k not in ("_mode",)}, round(dur, 4),
                                 [file_sig(a) for a in assets if a], FONT_DIR, prev_key,
                                 # a renderer change (a skill update) re-renders every shot
-                                file_sig(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                                      "reel_render.py"))]))
+                                [file_sig(os.path.join(os.path.dirname(os.path.abspath(__file__)), m))
+                                 for m in ("reel_render.py", "reel_background.py")]]))
         for n, (i, j, sh, dur, name) in enumerate(plan):
             if only is not None and i not in only:
                 continue

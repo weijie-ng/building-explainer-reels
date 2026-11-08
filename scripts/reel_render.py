@@ -1,6 +1,17 @@
 """Shot renderers: each visual type becomes an exact-length 30 fps video file."""
 
 from reel_common import *  # noqa: F401,F403
+from reel_background import background as story_background
+
+
+def canvas(scene):
+    """A flat shot's base layer: transparent when the shot is drawn over the
+    reel's story background (set by the planner as "_background"), else the
+    reel's blue. Transparent pixels carry the blue, so edges blend toward it."""
+    from PIL import Image
+    if scene.get("_background"):
+        return Image.new("RGBA", (W, H), BG + (0,))
+    return Image.new("RGB", (W, H), BG)
 
 
 # --- shared overlay text -----------------------------------------------------
@@ -342,7 +353,7 @@ def render_card(scene, dur):
             d.ellipse([58, dot_top + 40, 82, dot_top + 64], fill=YELLOW)
             y = body_top
         else:
-            im = Image.new("RGB", (W, H), BG)
+            im = canvas(scene)
             d = ImageDraw.Draw(im)
             y = top
             for line in wrap(d, card["outlet"], f_out, HEADLINE_WRAP):
@@ -573,7 +584,7 @@ def render_timeline(scene, dur):
     f_text = font(BOLD, 30)
 
     def frame(n):
-        im = Image.new("RGB", (W, H), BG)
+        im = canvas(scene)
         d = ImageDraw.Draw(im)
         if n:
             last_y = blocks[n - 1][0] + 12
@@ -678,8 +689,8 @@ def draw_pointer(im, d, scene, y, max_h, warnings, wide=False):
 def render_end_card(scene, warnings):
     """The end card without summary panels: closing line, pointer and
     disclosure line, and no captions, so nothing competes with the pointer."""
-    from PIL import Image, ImageDraw
-    im = Image.new("RGB", (W, H), BG)
+    from PIL import ImageDraw
+    im = canvas(scene)
     d = ImageDraw.Draw(im)
     y = draw_headline(d, SAFE_TOP, scene.get("headline", "CHECK BEFORE YOU SHARE"),
                       scene.get("yellow_words"), size=HEADLINE_SIZE)
@@ -796,7 +807,7 @@ def render_summary(scene, dur, warnings):
     {"title": "FALSE", "text": "..."}]}."""
     from PIL import Image, ImageDraw
     sid = scene.get("id")
-    base = Image.new("RGB", (W, H), BG)
+    base = canvas(scene)
     d = ImageDraw.Draw(base)
     y = draw_headline(d, SAFE_TOP, summary_title(scene), scene.get("yellow_words"),
                       size=HEADLINE_SIZE)
@@ -1074,8 +1085,9 @@ def render_stat(scene, dur):
     """A stat shot: one sourced figure, big, with a short label under it,
     arriving on the word that says it. A plain number counts up to its value
     (STAT_COUNT_SECONDS, ease-out); anything else ("0 of 5", "21 OCT") pops
-    in. The label shows from the first frame. On the background blue with grain, or as transparent stages over an
-    AI motion clip ("motion_clip"), like the diagram.
+    in. The label shows from the first frame. Over the story background (or the
+    plain blue without one) with grain, or as transparent stages over an AI
+    motion clip ("motion_clip"), like the diagram.
 
     stat: {"value": "9.2", "label": "severity score, 10 = most severe",
            "source": "PHP ADVISORY • 21 OCT 2026", "motion_clip": "...",
@@ -1096,7 +1108,7 @@ def render_stat(scene, dur):
     y_val = top + max(0, (bottom - top - block) // 2) - 20
 
     def frame(text, scale=1.0, label=True):
-        im = Image.new("RGBA", (W, H), (0, 0, 0, 0)) if transparent else Image.new("RGB", (W, H), BG)
+        im = Image.new("RGBA", (W, H), (0, 0, 0, 0)) if transparent else canvas(scene)
         d = ImageDraw.Draw(im)
         f = font(BOLD, max(8, round(size * scale)))
         tw = d.textlength(text, font=f)
@@ -1178,8 +1190,7 @@ def apply_wipe(path, prev_path, prev_frames, frames, direction, work, name):
 
 
 def render_plain(scene):
-    from PIL import Image
-    return [(Image.new("RGB", (W, H), BG), text_layer(scene)[0], 0.0)]
+    return [(canvas(scene), text_layer(scene)[0], 0.0)]
 
 
 MOVES = ("push", "pan", "inset")
@@ -1224,7 +1235,8 @@ def move_transform(move, t, dur, keep_rect=None, band_top=SAFE_TOP):
 
 
 def stages_to_video(stages, dur, work, name, creep="in", grain=False, move=None,
-                    keep_rect=None, band_top=SAFE_TOP, run_off=0, run_frames=None, hold=False):
+                    keep_rect=None, band_top=SAFE_TOP, run_off=0, run_frames=None, hold=False,
+                    bg=None, bg_start=0.0):
     """Render a shot frame by frame and pipe it to ffmpeg (exact frame count).
 
     stages: [(base, overlay_or_None, start_seconds), ...]. The base layer
@@ -1235,12 +1247,19 @@ def stages_to_video(stages, dur, work, name, creep="in", grain=False, move=None,
     run_off, run_frames: this shot is one of a run of shots that continue the
     same visual (see reel_continuity): it starts run_off frames into a run of
     run_frames, and the creep or move is computed on run time, so the base layer
-    carries on from where the previous shot ended instead of restarting."""
+    carries on from where the previous shot ended instead of restarting.
+    bg, bg_start: the reel's story background (reel_background) and the shot's
+    start in reel seconds. The base layer, transparent where it would be plain
+    blue, creeps or moves over the background, which keeps its own motion on
+    reel time, so it carries on across cuts and through a hold."""
     from PIL import Image
     total = frames_for(dur)
     run_total = run_frames or total
     run_dur = run_total / FPS
     out = os.path.join(work, f"{name}.mp4")
+    fill = BG + (0,) if bg is not None else BG
+    if bg is not None:
+        stages = [(b if b.mode == "RGBA" else b.convert("RGBA"), lay, s) for b, lay, s in stages]
     noise = [Image.effect_noise((W // 2, H // 2), 40).resize((W, H)).convert("RGB")
              for _ in range(GRAIN_FRAMES)] if grain else []
     p = subprocess.Popen(["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
@@ -1262,7 +1281,7 @@ def stages_to_video(stages, dur, work, name, creep="in", grain=False, move=None,
             a = 1 / sc
             img = base.transform((W, H), Image.AFFINE,
                                  (a, 0, cx - (cx + sx) * a, 0, a, cy - cy * a),
-                                 resample=Image.BICUBIC, fillcolor=BG)
+                                 resample=Image.BICUBIC, fillcolor=fill)
         elif creep == "in":
             # Inverse affine map: scale about the frame centre.
             a = 1 / (1 + CREEP_SCALE * frac)
@@ -1278,6 +1297,8 @@ def stages_to_video(stages, dur, work, name, creep="in", grain=False, move=None,
                                  resample=Image.BICUBIC)
         else:
             img = base
+        if bg is not None:
+            img = compose(bg.frame(bg_start + f / FPS), img)
         if noise:
             img = Image.blend(img, noise[(run_off + f) % len(noise)], GRAIN_ALPHA)
         if layer is not None:
@@ -1406,8 +1427,9 @@ def render_shot(sh, dur, work, name, warnings):
     # A shot that continues the previous one's image does not rerun its move:
     # "_run_move" (set by the planner) is the move of the first shot of the run.
     move = sh.get("_run_move", sh.get("move")) if sh.get("image") and not sh.get("card") else None
+    bg = story_background(sh["_background"]) if sh.get("_background") else None
     return stages_to_video(stages, dur, work, name, creep=sh.get("_run_creep", sh.get("creep", "in")),
                            grain=not sh.get("image"), move=move,
                            keep_rect=sh.get("_keep_rect"), band_top=sh.get("_band_top", SAFE_TOP),
                            run_off=sh.get("_run_off", 0), run_frames=sh.get("_run_frames"),
-                           hold=bool(sh.get("_run_hold")))
+                           hold=bool(sh.get("_run_hold")), bg=bg, bg_start=sh.get("_reel_start", 0.0))

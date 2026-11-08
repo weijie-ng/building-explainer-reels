@@ -263,7 +263,8 @@ def validate(scenes, args, man=None):
             if legacy in s:
                 warnings.append(f"scene {sid}: '{legacy}' is no longer used and is ignored "
                                 "(stills zoom to their 'keep' box; mask clip captions with "
-                                "'clip_mask'; one background colour for every shot).")
+                                "'clip_mask'; the story background is set once, at the top "
+                                "of the manifest).")
         if s.get("body"):
             warnings.append(f"scene {sid}: 'body' dropped (no double text); keep it in narration.")
         has_visual = any(s.get(k) for k in ("image", "clip", "card", "diagram", "summary",
@@ -454,6 +455,17 @@ def validate(scenes, args, man=None):
     wipes = sum(1 for _, _, _, sh in units if sh.get("wipe"))
     if wipes > 3:
         warnings.append(f"{wipes} graphic wipes; use 1-3 per reel, at section turns.")
+    from reel_background import uses_background, spec_problems, PRESETS
+    if "background" in man:
+        errors += spec_problems(man["background"])
+    else:
+        blue = [f"{scene.get('id', f'#{i}')}" + (f" shot {j + 1}" if scene.get("shots") else "")
+                for i, j, scene, sh in units if uses_background(sh)]
+        if blue:
+            warnings.append(f"{len(blue)} shot(s) would sit on plain blue and read as slides "
+                            f"({', '.join(blue[:4])}{'...' if len(blue) > 4 else ''}). Set a story "
+                            f"background: \"background\": {{\"preset\": ...}}, one of "
+                            f"{sorted(PRESETS)} or \"custom\" (SKILL.md, \"Background\").")
     return errors, warnings
 
 

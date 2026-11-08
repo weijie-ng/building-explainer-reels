@@ -3,6 +3,9 @@
   "output": "sample_reel.mp4",
   "max_duration": 65,
   "music_bed": true,
+  "background": {
+    "preset": "posts"
+  },
   "scenes": [
     {
       "id": "hook-ai",
