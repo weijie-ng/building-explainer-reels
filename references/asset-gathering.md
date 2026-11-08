@@ -13,11 +13,12 @@ Every shot gets its visual this way, except the diagram, the map, the timeline a
 A find counts only when it is **related**: it shows the people, organisations, products, places, documents or data the shot is about. A stock "hacker in a hoodie", an unrelated archive photo, or a logo shot reused from another story is not related. An archive photo of the people involved is related, but never present it as the event itself.
 
 **2. Choose.** This is a judgment, not a fixed order. Put the best related find next to what a Muse AI image or video could show, and ask which makes this shot's line clearer and more watchable.
-- **Keep the real find** when it is the evidence for the line (the post, the document, the chart, the actual person or place), or when it shows something the viewer couldn't otherwise picture. Never swap evidence for AI because it looks dull. Give it motion instead: `push`, `pan`, `inset`, or a tighter keep box on the detail that matters.
-- **Use Muse AI** in three cases:
+- **Keep the real find** when the line rests on it as evidence: the false post or material, a statement or denial, or the document, chart, person or place behind a claim facts.md marks as alleged or disputed. Keep it, too, when it shows something the viewer couldn't otherwise picture. Never swap that evidence for AI because it looks dull. Give it motion instead: `push`, `pan`, `inset`, or a tighter keep box on the detail that matters.
+- **Use Muse AI** in four cases:
   - the line is a concept, a process or a scale (money frozen, a queue paused, a message spreading across thousands of accounts);
   - nothing related was found;
-  - the related find is still dull after a tighter crop and motion: a reused logo, a stock-looking photo, a small or blurry image, a plain head shot already used, or the same subject as the shots around it.
+  - the related find is still dull after a tighter crop and motion: a reused logo, a stock-looking photo, a small or blurry image, a plain head shot already used, or the same subject as the shots around it;
+  - the line states a claim facts.md marks as confirmed and undisputed (an event every source agrees happened: a supply cut, a plant closure, a product launch) and its real find is a still (a photo, graphic or chart). An AI video acting out the line may replace the still; log the still you passed over. The video shows a generic scene (a terminal, not that terminal), never something that could pass as footage of the event. A real clip of the event still beats AI.
 
   Make AI material a video by default: an AI still is only the start frame you check and then animate (SKILL.md, "AI material", and `references/ai-video.md`). An AI still left still is the weakest moving shot there is, so log why video didn't work. See "AI material" in SKILL.md for the limits.
 - **A figure is a stat shot.** When a line lands on one sourced figure (a score, a count, a date, "0 of 5"), show it as a `stat` rather than a picture: it arrives on the word and carries its source label.

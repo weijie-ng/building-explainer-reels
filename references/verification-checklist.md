@@ -97,17 +97,18 @@ Inspect the images themselves; do not infer them from the commands' output.
 - [ ] **C6 Spelling**: every name in headlines, diagram nodes and labels matches facts.md exactly.
 - [ ] **C7 AI honesty**: check every AI shot (image or Muse video) for each of the following.
   - **Basics.** FAIL unless it is labelled "AI-GENERATED ILLUSTRATION" and is ≤3s (an AI still) or ≤6s (an AI video), and no longer than the real receipt for the same claim.
-  - **Never shown.** FAIL if it shows a real named person, a real place presented as evidence, the alleged event, an organisation's building or logo, or anything that could pass as a news photo or footage of a real event.
+  - **Never shown.** FAIL if it shows a real named person acting in the scene or with a face Muse invented, a real place presented as evidence, the alleged event, an organisation's building, or anything that could pass as a news photo or footage of a real event.
+  - **Real thumbnails and logos.** The story's own people, accounts and organisations may appear as thumbnails, avatars or logos. FAIL any that facts.md or the asset log doesn't name, that doesn't match its real source image, that warps, morphs or merges in any frame (name the frame), that is a full-frame face rather than a small image among others, or that makes someone seem to say or do what the sources don't say.
   - **Simulated posts or feeds.** FAIL any of these:
     - a real platform's logo or interface;
-    - a real account name, handle or face;
+    - a real account name, handle or face that isn't one of the story's own accounts, or isn't spelled exactly as it posts;
     - a recreated real post;
-    - post text that breaks SKILL.md's simulated-post rules: a real account, a misspelled or garbled message, counts that look like the story's figures, or place names the sources don't give;
+    - post text that breaks SKILL.md's simulated-post rules: a real account shown with its real post's wording, a misspelled or garbled message, counts that look like the story's figures, or place names the sources don't give;
     - a scale (number of posts, speed) beyond what facts.md supports;
     - a false message shown without the narration saying it is false in the same beat.
   - **Support.** FAIL any AI visual that suggests something the narration or sources don't support.
-  - **Evidence passed over.** For each AI shot, read its asset log row and open the sources facts.md lists for that claim. FAIL if they contain a related real image that is the evidence for the line (the post, document, chart, person or place the line is about), and name it. A related image that the log records as dull or generic, with a reason, may be replaced by AI; generic images don't count.
-- [ ] **C8 Real clips**: labelled with account + date; muted; no second caption track or clip logo colliding with the headline or our captions. For a side-by-side composite of real clips, check three more things:
+  - **Evidence passed over.** For each AI shot, read its asset log row and open the sources facts.md lists for that claim. FAIL if they contain a related real image that is the evidence for the line (the post, document, chart, person or place the line is about), and name it. A related image that isn't the evidence, logged as dull or generic with a reason, may be replaced by AI (generic images don't count); a log calling the evidence itself dull is no reason. Evidence passes in one case only: a still for a claim facts.md marks as confirmed and undisputed, replaced by an AI video of a generic scene. That case still FAILs if the AI is a still, if it could pass as footage of the real event or site, or if a real clip of the event was found.
+- [ ] **C8 Real clips**: labelled with account + date; muted. FAIL if the clip's own running captions (subtitles that change with the speech) collide with the headline or our captions. The clip's static text (a logo, channel name or fixed title box) may sit behind the header stack; FAIL it only where it makes a headline or caption word hard to read, naming the word and frame. For a side-by-side composite of real clips, check three more things:
   - every tile traces to a post in the asset log;
   - the account names drawn on the tiles match those posts exactly;
   - the one label describes the set and doesn't present the tiles as a sourced count.
@@ -122,10 +123,10 @@ Inspect the images themselves; do not infer them from the commands' output.
   - **Graphics.** FAIL if the reel has more than one diagram beat, one map or one timeline. An AI simulated spread over a world-map backdrop counts as the map only when it names or points at places. FAIL if any of them is used for a shot that isn't a chain of links, a location or the closing sequence of events.
   - **Asset log.** Every shot other than the diagram, map, timeline and end card needs a row in facts.md's asset log. FAIL a missing row, a row that doesn't show what each of places A–D gave, or a row with no reason for the choice.
   - **Choices.** Check each choice against `references/asset-gathering.md`. FAIL any of these, naming the shot:
-    - a related real image that is the evidence for its line, replaced by AI or a headline card;
+    - a related real image that is the evidence for its line, replaced by AI or a headline card. The only exception is the one in C7: a still for a confirmed, undisputed claim, replaced by an AI video;
     - a real image kept although it reads as stock, a reused logo or a repeat of nearby shots, when AI was allowed;
     - a headline card that could take a related image or an AI illustration.
-  - **Spot-check the search.** For the AI shots and headline cards, run a short web search: cited articles' image URLs from their page text, other coverage, the primary source's posts, and Wikimedia Commons. FAIL if it finds a related image that is the evidence for the line, or one the log missed that would clearly beat the chosen visual; name its URL. If a page needs a live browser to check, FAIL with what to look for, and the main agent checks.
+  - **Spot-check the search.** For the AI shots and headline cards, run a short web search: cited articles' image URLs from their page text, other coverage, the primary source's posts, and Wikimedia Commons. FAIL if it finds a related image that is the evidence for the line (the C7 exception applies), or one the log missed that would clearly beat the chosen visual; name its URL. If a page needs a live browser to check, FAIL with what to look for, and the main agent checks.
   - **Pace and variety.** FAIL any of these:
     - a stretch over about 6s with no visual change, other than the end card (a cut, a move, a highlight or a graphic build counts; creep alone does not, and nor does a new headline over the same picture);
     - three similar shots in a row;

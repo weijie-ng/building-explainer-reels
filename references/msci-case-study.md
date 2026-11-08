@@ -113,7 +113,7 @@ Each row is a defect that reached a render of this reel, the rule that now preve
 | Bold "RECREATED HEADLINE CARD" banners, "(MUTED, CAPTIONS MASKED)" labels | Production notes left off the screen | D9 |
 | "TYING IT TO MSCI = FALSEHOOD" was a small tag on a very dark AI pipeline shot | The real-vs-false distinction is shown on screen together, on real material | C2 |
 | An AI network with a dense central hub sat under "no single operator" | No AI visual contradicts the narration | C7 |
-| A large delogo box left a blurred band and a "SEK" fragment on the real clip | Mask a clip's captions and logos so nothing collides with our text; check the rendered frame | C8 |
+| A large delogo box left a blurred band and a "SEK" fragment on the real clip | Mask the clip's running captions where they collide with our text; leave static logos and titles unless they make our text hard to read; check the rendered frame | C8 |
 | A map label covered its own dot, and the schematic label appeared twice | One schematic label, added by the build; no text inside the map itself | D8 |
 | A frame from the previous layout flashed at a cut (a scene assumed to end at 5.0s ran to 5.3s) | Verify cuts on the rendered file | B7 |
 | A 48s timeline rendered as a 1s file (single-frame overlay with `-shortest`; `-c copy` across mixed frame rates) | Looped overlays, 30 fps normalisation, duration checked against the shot list | B1 |

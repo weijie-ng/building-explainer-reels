@@ -26,7 +26,7 @@ The build plays the clip as the base layer, tinted toward the background blue, a
 - **Logged.** Each account, post URL and date goes in the asset log.
 - **A label that describes the set.** Use one source label saying what the tiles are, plus the trace date (e.g. "TRACED EXAMPLES • 28 OCT 2026"). If the tiles aren't part of a figure in the reel, say so ("NOT CNA'S 68"). Never imply the tiles are the whole set or a sourced count.
 - **Room for the reel's text.** Leave the headline band and the caption band free of account names and other tile text the viewer must read.
-- **Burned-in captions.** Mask the source clips' captions (`clip_mask`) wherever they would collide with the reel's headline or captions.
+- **Burned-in text.** Mask the source clips' running captions (`clip_mask`) wherever they would collide with the reel's headline or captions. Static text (a logo, a title box) may stay unless it makes the reel's text hard to read (SKILL.md, "Real clips").
 - **Muted**, like any real clip.
 
 Build it with `python3 scripts/make_composite.py spec.json --out composite.mp4 --preview`:

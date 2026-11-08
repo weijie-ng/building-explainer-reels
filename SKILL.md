@@ -233,7 +233,7 @@ Give headlines over busy photos a black stroke.
 
 **Asset gathering.** Every shot gets its visual this way, except the diagram, the map, the timeline and the end card. Those are not a way around it: use the diagram only for the one chain of links, the map once, and the timeline once, just before the end card. The full method is in `references/asset-gathering.md`: read it at Workflow step 4, before gathering anything. In short:
 1. **Search every place, for every shot:** the cited articles, other coverage and free images, the primary source, and footage (footage first for the hook). A find counts only when it is related to what the shot is about.
-2. **Choose** between the best related find and what Muse AI could show. Keep the real find when it is the evidence for the line; never swap evidence for AI because it looks dull. Use AI (a video by default) for a concept, a process or a scale, or when nothing related, or only dull finds, turned up. A single sourced figure is a stat shot. A headline card comes last, at most 2 per reel.
+2. **Choose** between the best related find and what Muse AI could show. Keep the real find when the line rests on it as evidence: the false material, a statement or denial, or a claim facts.md marks as alleged or disputed; never swap that evidence for AI because it looks dull. A claim facts.md marks as confirmed and undisputed (an event every source agrees happened) is different: when its real find is a still, an AI video of a generic scene may carry the line instead. Use AI (a video by default) for a concept, a process or a scale, or when nothing related, or only dull finds, turned up. A single sourced figure is a stat shot. A headline card comes last, at most 2 per reel.
 3. **Check the reel as a whole:** something on screen changes every 2–6s, shot types take turns, and the dry run's pace report is read before capturing more.
 4. **Log it** in the asset log in facts.md; the verifier checks it (D4, C7).
 
@@ -251,7 +251,7 @@ The file also covers repairing an image with too much text (D5), downloading and
   - Keep the region of interest in the content band, below the caption band, and inside y=1030.
   - **A simulated spread over a world-map backdrop** (posts popping up across a map; see "AI material") is an AI illustration, not the reel's map, when it claims nothing about where: no place names, and posts scattered without pointing at particular places. If it names or points at places, it counts as the reel's one map: set `"schematic": true`, and use only places the sources name.
 
-**Real clips.** Short, muted slices, only if cleanly obtained. Mask the clip's own burned-in captions and logos so they never collide with the headline or our captions; measure the bands from a rendered frame, never guess (ffmpeg delogo needs x > 0). If a clean slice cannot be obtained, omit it and say why; never invent one.
+**Real clips.** Short, muted slices, only if cleanly obtained. Mask the clip's own running captions (burned-in subtitles that change with the speech) where they would collide with the headline or our captions; measure the bands from a rendered frame, never guess (ffmpeg delogo needs x > 0). The clip's static text (a logo, a channel name, a fixed title box) may stay, even behind the header stack, as long as every headline and caption word still reads clearly over it: it is part of the receipt, and a large delogo box leaves a blurred band that looks worse than the text it hides. Mask static text only where it makes our text hard to read. If a clean slice cannot be obtained, omit it and say why; never invent one.
 
   To show the same content posted by several accounts, tile their real clips into one side-by-side composite with `scripts/make_composite.py`: unedited tiles, account names copied exactly, logged, one label describing the set. The rules and how to build it are in `references/graphics-and-clips.md`.
 
@@ -261,22 +261,26 @@ The file also covers repairing an image with too much text (D5), downloading and
 
 Subject and style are open: flat illustration or photoreal, still or moving. The one condition is that the result can't be taken for evidence. This follows AP's standard: AI imagery only as clearly labelled illustration, never as a news photo. For examples from past reels, see `references/msci-case-study.md`. The limits are the same for images and video:
 - **Never show:**
-  - a real named person;
+  - a real named person acting in the scene, or a face Muse invented for one;
   - the alleged event itself;
   - a real place shown as evidence;
-  - an organisation's building or logo;
+  - an organisation's building;
   - anything that could pass as a news photo or footage of a real event.
+- **Real thumbnails and logos may appear**, so the viewer sees who the story is about: a feed, a wall of posts or a montage may show the story's own people, accounts and organisations as thumbnails, avatars or logos. Each one is:
+  - named in facts.md or the asset log, and taken from a real image (their post, a credited photo, the official logo);
+  - recognisably that real image in every frame. Muse redraws what it animates, so a face or logo that warps, morphs or merges gets the real image composited back over it, a clean slice, or a regeneration;
+  - a small image among others, never a full-frame face, and never placed so that someone seems to say or do what the sources don't say.
 - **Simulated posts and feeds are allowed**, to show a message spreading: a wall of posts multiplying, a feed scrolling, the same message appearing across many phones.
-  - **Keep them generic.** Use invented post shapes. Show no real platform's logo or interface, no real account name, handle or face, and never recreate a real post.
+  - **Keep them generic.** Use invented post shapes. Show no real platform's logo or interface, and never recreate a real post. Accounts are invented, except the story's own accounts, which may appear by their real name, avatar or thumbnail (see "Real thumbnails and logos" above).
   - **Post text may be readable, as texture.** Viewers aren't meant to read the posts; the headline and caption carry the claim. Check every frame:
-    - account names are invented and generic (`@user_1234`), never a real account;
+    - account names are invented and generic (`@user_1234`), or one of the story's own accounts spelled exactly as it posts. A real account's post may show its real thumbnail, but carries a placeholder message, never its real post's wording, which would recreate the post;
     - the message is either a neutral placeholder ("INFO A001", "Excited to share…") or the sourced wording spelled exactly. If the message comes out garbled, regenerate, mask it (`clip_mask`), or pick a clean slice (`clip_start`/`clip_end`);
     - like counts, shares and times are small, generic decoration, never the story's own figures and never beyond the scale the sources give;
     - place names, on the posts or on a map behind them, appear only where the sources place the spread.
   - **Stay within the sources on scale.** How many posts, and how fast, must not go beyond what the sources say.
   - **When the message is false**, the narration says so in the same beat, and the visual never sits under a line that presents the message as true.
   - **A simulated post is never evidence.** When the reel needs to show what was actually posted, use the real post: a screenshot, its clip, or a side-by-side composite of real clips (see "Real clips"). Simulated posts carry the AI label, not the DISINFORMATION POST tag, which is for real false material.
-- **No readable text in generated frames**, except on simulated posts and feeds (rules above). All other words are added by the build.
+- **No readable text in generated frames**, except on simulated posts and feeds and in real thumbnails and logos (rules above). All other words are added by the build.
 - **Short, labelled and muted.** Each AI still is ≤3s and each AI video ≤6s, labelled. No AI shot runs longer than the real receipt for the same claim; a still receipt is capped at 4s, so a claim that needs longer on its evidence gets a real clip or a second receipt, not a longer illustration.
 - **A scene with one purposeful action, not an icon.** Flat clip-art (a server icon, a shield, a padlock on a plain background) looks like a slide graphic and tells the viewer nothing the headline doesn't. Ask for an illustrative scene with depth and light, and one physical action that acts out the line: a vault door unlatching for "without logging in", one cube after another turning red for "chained to full control", a key failing in a lock for "exploits had to be tuned to each target". Metaphors like these keep it clearly an illustration, never footage of the real event.
 

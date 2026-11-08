@@ -14,7 +14,7 @@ Look at the result: the action must be the one asked for, finish inside the trim
 **Bringing in an AI video from Muse.** Muse saves the generated video as an mp4; put it in the assets folder and reference it like any clip: `"clip": "ai_frozen_funds.mp4", "material": "ai"`. Ask Muse for:
 - **9:16, 720×1280**, so nothing is cropped. Any other shape is cropped to fill the frame, around the clip's `keep` box (fractions of the frame, as for images), or the centre without one; the build warns when an AI clip isn't 9:16.
 - **At least as long as its shot** (up to 6s). A shorter clip would hold its last frame, a freeze, and the build warns; use `clip_start` to pick the best part of a longer one.
-- **No text, logos or watermark** in the frame, except post text on a simulated feed (SKILL.md, "AI material"). If one appears anyway, cover it with `clip_mask` or regenerate.
+- **No text, logos or watermark** in the frame, except post text on a simulated feed and the story's real thumbnails or logos (SKILL.md, "AI material"). Put those real images into the start frame yourself rather than asking Muse to draw them, then check every frame, because Muse redraws what it animates. If anything else appears, cover it with `clip_mask` or regenerate.
 - **For a simulated feed or wall of posts**, still ask for 9:16, with the posts large enough to fill the frame. A 16:9 grid cropped to 9:16 keeps only about two columns and loses the sense of many accounts.
 
 The build handles the rest: any frame rate becomes 30 fps with an exact frame count, the clip's own audio is dropped, and the "AI-GENERATED ILLUSTRATION" label is added. Look at the clip before it goes in the manifest, as with any asset.
