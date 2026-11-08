@@ -74,13 +74,13 @@ The first version was stitched by Muse with ffmpeg and PIL. It showed the idea b
 - the source videos' own burned-in caption ("SAHAM INTERNASIONAL") stayed visible in two tiles. It didn't collide with the reel's text, but it was extra text on screen.
 
 `scripts/make_composite.py` now builds this shot and avoids all four problems:
-- the tiles sit in the content band (from about y=408 to y=1030);
+- the tiles sit below the caption band (from about y=408);
 - the background is the reel's blue over a blurred copy of the first clip;
 - a per-tile `mask` blurs a source caption out;
 - `--preview` shades the bands to check the layout before the shot goes in the manifest.
 
 Settings worth reusing:
-- `"layout": "grid"` for four portrait clips (each cropped around its `focus`); `"row"` for two or three, shown whole;
+- `"layout": "grid"` for four portrait clips (2×2, each whole, running to the frame's bottom edge); `"row"` for two or three, shown whole;
 - `"stagger": 0.3`, so the accounts arrive one after another, showing the same video turning up again and again;
 - one asset-log row per tile (account as posted, post URL, date), which the script prints.
 

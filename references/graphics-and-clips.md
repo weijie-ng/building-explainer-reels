@@ -48,7 +48,7 @@ Build it with `python3 scripts/make_composite.py spec.json --out post.mp4 --prev
 
 Build it with `python3 scripts/make_composite.py spec.json --out composite.mp4 --preview`:
 - **What the script does:**
-  - places 2–4 tiles in the content band, between the caption band and y=1030 and inside the headline's column (x 40–680), 16px apart, with the reel's blue over a blurred fill behind them. Side by side (`row`), each clip is shown whole: when the band caps the height, the tile narrows rather than cropping the clip. The `grid` crops each clip around its `focus`;
+  - places 2–4 tiles below the caption band and inside the headline's column (x 40–680), 16px apart, with the reel's blue over a blurred fill behind them. Every clip keeps its own shape, shown whole; a clip is cropped around its `focus` only when its shape differs from the other tiles'. Side by side (`row`), the tiles stay inside the content band, narrowing when the band caps their height. A 2×2 `grid` of tall clips runs past y=1030 to the frame's bottom edge like a post (four 9:16 clips at 218×388 each, against 148×263 kept inside the band). Every account name stays above y=1030, and the script prints how much of the bottom row sits under the platform's UI (about 64% of four 9:16 clips), so nothing the line depends on may be in that part of those clips;
   - draws each account's avatar and name exactly as given;
   - masks the source clips' captions per tile;
   - can bring the tiles in one after another (`stagger`).

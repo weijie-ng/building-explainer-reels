@@ -11,8 +11,11 @@ composite of real clips"):
   shown whole at 468x832 instead of 327x582. The script prints how much of
   the clip lies under the platform's UI: nothing the line depends on may
   be there.
-- 2-4 tiles: the same content posted by several accounts, tiled side by
-  side inside the content band.
+- 2-4 tiles: the same content posted by several accounts, each clip whole
+  in its own shape. Side by side ("row") they stay inside the content band;
+  a 2x2 "grid" of tall clips runs past the platform's UI to the bottom edge
+  like a post (four 9:16 clips at 218x388), with every account name above
+  it, and the script prints how much of the bottom row is covered.
 
 Either way none of the reel's own text lands on a tile or an account
 name, and the tiles stay inside the headline's column (x 40-680), 16px
@@ -40,7 +43,9 @@ spec.json:
        "account": "Dagul Udin",       // exactly as on the post
        "avatar": "dagul_avatar.jpg",  // optional: the post's own profile picture
        "post_url": "https://...", "posted": "27 OCT 2026",
-       "focus": [0.5, 0.4],           // optional: centre of the crop (fractions)
+       "focus": [0.5, 0.4],           // optional: centre of the crop (fractions), used
+                                      //   only when this clip's shape differs from the
+                                      //   other tiles'
        "mask": [[0.1, 0.78, 0.9, 0.86]]}  // optional: burned-in captions to blur
     ]                                 //   out (x0, y0, x1, y1 fractions of the clip)
   }
@@ -137,10 +142,14 @@ def layout(spec, sizes):
     Post (one tile): the clip whole, in its own shape, as large as the frame
     allows below the caption band; a tall clip runs past the platform's UI
     to the bottom edge, a wider one is centred in the content band.
-    Grid: 2 columns, tiles as large as the band allows (a portrait clip is
-    cropped around its focus). Row: 1 x N, each tile keeping its clip's own
-    shape, so a portrait clip is shown whole but small: when the band caps
-    the height, the tile narrows instead of cropping the clip."""
+    Grid: 2 columns, each tile keeping its clip's own shape, as large as the
+    frame allows below the caption band; tall clips run past the platform's
+    UI to the bottom edge, as a post does, while every account strip stays
+    above it. Row: 1 x N, each tile keeping its clip's own shape inside the
+    content band, so a portrait clip is shown whole but small: when the band
+    caps the height, the tile narrows instead of cropping the clip.
+    A tile's clip is cropped (around its focus) only when its shape differs
+    from the tiles' shared shape."""
     n = len(sizes)
     top, bottom = band(spec)
     band_h = bottom - top
@@ -170,15 +179,23 @@ def layout(spec, sizes):
         x0 = (W - (n * tw + (n - 1) * GAP)) // 2
         cells = [(x0 + i * (tw + GAP), y, tw, th) for i in range(n)]
     elif mode == "grid":
+        # Like the post: each clip keeps its shape, and tall clips may run
+        # past the platform's UI to the bottom edge (four 9:16 clips are
+        # 218x388 each instead of 148x263 inside the band).
         cols, rows = 2, math.ceil(n / 2)
-        tw = (usable_w - GAP) // cols
-        th = (band_h - (rows - 1) * GAP) // rows - CHIP_H
+        aspect = sum(h / w for w, h in sizes) / n
+        cell_w = (usable_w - GAP) // cols
+        row_h = (H - top - (rows - 1) * GAP) // rows - CHIP_H
+        th = min(int(cell_w * aspect), row_h)
+        tw = min(cell_w, int(th / aspect))
+        grid_h = rows * (CHIP_H + th) + (rows - 1) * GAP
+        y0 = top + max(0, (band_h - grid_h) // 2)   # centred in the band when it fits there
         cells = []
         for i in range(n):
             r, c = divmod(i, cols)
             in_row = min(cols, n - r * cols)
             x0 = (W - (in_row * tw + (in_row - 1) * GAP)) // 2
-            cells.append((x0 + c * (tw + GAP), top + r * (th + CHIP_H + GAP) + CHIP_H, tw, th))
+            cells.append((x0 + c * (tw + GAP), y0 + r * (th + CHIP_H + GAP) + CHIP_H, tw, th))
     else:
         fail(f"layout must be 'post', 'grid', 'row' or 'auto', not {mode!r}.")
     for w_, h_ in [(c[2], c[3]) for c in cells]:
@@ -329,13 +346,15 @@ def main():
     print(f"wrote {out}  ({len(spec['tiles'])} tile(s), {mode} layout, {spec['duration']}s, muted)")
     for w in warnings:
         print(f"WARNING: {w}")
-    x, y, w, h = cells[0]
-    if mode == "post" and y + h > KEEP_BOTTOM:
+    x, y, w, h = max(cells, key=lambda c: c[1])
+    if y + h > KEEP_BOTTOM:
         cut = (KEEP_BOTTOM - y) / h
-        print(f"\nThe post is {w}x{h} at y={y}. Its bottom {1 - cut:.0%} (below {cut:.2f} of "
-              "the clip's height) sits under the platform's caption, name and buttons. Look at "
-              "that part of the clip: nothing the line depends on may be there, and burned-in "
-              "captions there still need a 'mask'.")
+        pct = f"{1 - cut:.0%}"
+        what = (f"The post is {w}x{h} at y={y}. Its bottom {pct}" if mode == "post" else
+                f"The bottom row's tiles are {w}x{h} at y={y}. The bottom {pct} of each")
+        print(f"\n{what} (below {cut:.2f} of the clip's height) sits under the platform's "
+              "caption, name and buttons. Look at that part of the clip: nothing the line "
+              "depends on may be there, and burned-in captions there still need a 'mask'.")
     entry = {"clip": os.path.basename(out), "material": "real", "image_source": spec["label"]}
     print("\nManifest entry (add the shot's headline, and keep the label as given):")
     print("  " + json.dumps(entry, ensure_ascii=False))
