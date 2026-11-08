@@ -253,7 +253,9 @@ Dependencies: ffmpeg (with libass) + ffprobe on PATH, Pillow,
 faster-whisper (or openai-whisper; model REEL_WHISPER_MODEL, default
 small.en), a TTS command (default /opt/hatch/bin/tts; override with --tts or
 REEL_TTS), and DejaVu fonts (default /usr/share/fonts/truetype/dejavu;
-override with REEL_FONT_DIR).
+override with REEL_FONT_DIR). Only for Chinese, Japanese or Korean text on
+the end card's pointer: a CJK font (REEL_CJK_FONT, REEL_CJK_BOLD_FONT, or
+Noto Sans CJK, WenQuanYi, PingFang or Microsoft YaHei where installed).
 """
 
 import argparse

@@ -17,6 +17,7 @@ the build already needs, to check the downloaded image).
 """
 
 import argparse
+import codecs
 import datetime
 import html as htmllib
 import json
@@ -185,6 +186,32 @@ def pointer_block(found, url, today, photo_path):
     return block, notes
 
 
+# Chinese sites often declare their encoding only inside the page, and label
+# GBK pages "gb2312"; GB18030 reads both (and is a superset of each).
+CHARSET_ALIASES = {"gb2312": "gb18030", "gbk": "gb18030", "x-gbk": "gb18030"}
+META_CHARSET = re.compile(rb"""<meta[^>]+charset\s*=\s*["']?\s*([A-Za-z0-9_.:-]+)""", re.I)
+
+
+def decode_html(body, header_charset):
+    """The page as text, in the encoding it declares: a byte-order mark,
+    then the HTTP header's charset, then a <meta charset> (or http-equiv)
+    near the top, then UTF-8. Unknown names are skipped; bad bytes become
+    the replacement character rather than an error."""
+    if body.startswith(codecs.BOM_UTF8):
+        return body[len(codecs.BOM_UTF8):].decode("utf-8", errors="replace")
+    meta = META_CHARSET.search(body[:4096])
+    for name in (header_charset, meta.group(1).decode("ascii") if meta else None):
+        if not name:
+            continue
+        name = CHARSET_ALIASES.get(name.strip().lower(), name.strip())
+        try:
+            codecs.lookup(name)
+        except LookupError:
+            continue
+        return body.decode(name, errors="replace")
+    return body.decode("utf-8", errors="replace")
+
+
 def _get(url, accept):
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": accept})
     with urllib.request.urlopen(req, timeout=20) as r:
@@ -219,13 +246,18 @@ def main(argv=None):
     ap.add_argument("--photo-out", help="where to save the share image "
                     "(default: pointer_photo.<ext> in the current folder)")
     args = ap.parse_args(argv)
+    # Chinese (or any) text prints as UTF-8 even when the terminal's own
+    # encoding can't show it, rather than crashing.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     try:
         body, _, charset = _get(args.url, "text/html,application/xhtml+xml")
     except Exception as e:
         print(f"could not fetch {args.url} ({e}); fill the pointer by hand from the page text: "
               "outlet, title (word for word), url, date", file=sys.stderr)
         return 1
-    found = parse_preview(body.decode(charset or "utf-8", errors="replace"), args.url)
+    found = parse_preview(decode_html(body, charset), args.url)
     photo_path, why = (_download_photo(found["photo_url"], args.photo_out)
                        if found["photo_url"] else (None, None))
     block, notes = pointer_block(found, args.url, datetime.date.today(), photo_path)

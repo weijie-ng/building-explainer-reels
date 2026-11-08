@@ -11,13 +11,12 @@ source. The title is the article's headline word for word: it shrinks, the
 card grows, or the build stops; it is never shortened or clipped.
 """
 
-from functools import lru_cache
 from urllib.parse import urlparse
 
 from reel_common import *  # noqa: F401,F403
 
-# The compact card searches heights, so fonts are reused rather than reloaded.
-font = lru_cache(maxsize=None)(font)  # noqa: F405
+# Text is drawn with text_font (reel_common): cached, and a CJK font for any
+# Chinese, Japanese or Korean text, which DejaVu can't draw.
 
 CARD_W = 640                 # the card spans the frame's content width (x 40-680)
 COMPACT_H = 150              # the compact card's least height
@@ -84,13 +83,13 @@ def _title_lines(d, title, max_w, sizes, ok):
     as many lines as it needs. Stops when a single word is wider than max_w
     at the last size: the title is never clipped."""
     for sz in sizes:
-        f = font(BOLD, sz)
+        f = text_font(BOLD, sz, title)
         lines = wrap(d, title, f, max_w)
         if _fits(d, lines, f, max_w) and ok(sz, lines):
             return f, lines, sz * 1.2
     sz = sizes[-1]
-    f = font(BOLD, sz)
-    for word in title.split():
+    f = text_font(BOLD, sz, title)
+    for word, _ in wrap_tokens(title):
         if d.textlength(word, font=f) > max_w:
             raise RuntimeError(f"pointer title word {word!r} is wider than the card at the "
                                "smallest size; check the title is the article's headline.")
@@ -101,7 +100,7 @@ def _small_lines(d, text, path, size, max_w):
     """(font, lines, line height) for the domain or the outlet-and-date line:
     wrapped at size, shrunk down to 11px when one word is too wide."""
     for sz in range(size, 10, -1):
-        f = font(path, sz)
+        f = text_font(path, sz, text)
         lines = wrap(d, text, f, max_w)
         if _fits(d, lines, f, max_w):
             return f, lines, sz * 1.2
@@ -196,7 +195,7 @@ def _compact_card(p):
         dom = _small_lines(d, pointer_domain(p["url"]), REG, 15, col_w)
         meta = _small_lines(d, f"{p['outlet']} · {p['date']}", REG, 15, col_w)
         fixed = 14 + dom[2] * len(dom[1]) + 5 + 6 + meta[2] * len(meta[1]) + 14
-        f_min = font(BOLD, 17)
+        f_min = text_font(BOLD, 17, p["title"])
         lines = wrap(d, p["title"], f_min, col_w)
         if h > COMPACT_H and (not _fits(d, lines, f_min, col_w)
                               or fixed + 17 * 1.2 * len(lines) > h):

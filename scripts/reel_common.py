@@ -1,5 +1,6 @@
 """Shared constants and small helpers for the reel build (see build_reel.py)."""
 
+import functools
 import json
 import os
 import re
@@ -94,16 +95,98 @@ def font(path, size):
     return ImageFont.truetype(path, size)
 
 
+# --- Chinese, Japanese and Korean text --------------------------------------
+# DejaVu has no CJK glyphs, so text with any CJK character is drawn in a CJK
+# font (which also covers Latin), found from REEL_CJK_FONT (and optionally
+# REEL_CJK_BOLD_FONT; a .ttc takes "path#index") or the usual install places.
+CJK_CHARS = ("\u2e80-\u2fff\u3000-\u30ff\u3100-\u31ff\u3400-\u4dbf\u4e00-\u9fff"
+             "\uac00-\ud7af\uf900-\ufaff\ufe30-\ufe4f\uff00-\uffef")
+CJK_RE = re.compile(f"[{CJK_CHARS}]")
+# (regular, bold) as (path, index in a .ttc); the first pair whose regular file exists wins
+CJK_FONT_CANDIDATES = [
+    ((os.path.join(FONT_DIR, "NotoSansCJK-Regular.ttc"), 2), (os.path.join(FONT_DIR, "NotoSansCJK-Bold.ttc"), 2)),
+    ((os.path.join(FONT_DIR, "NotoSansSC-Regular.ttf"), 0), (os.path.join(FONT_DIR, "NotoSansSC-Bold.ttf"), 0)),
+    (("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 2),
+     ("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", 2)),          # Debian, Ubuntu
+    (("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc", 2),
+     ("/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc", 2)),               # Arch
+    (("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc", 2),
+     ("/usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc", 2)),        # Fedora
+    (("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc", 0),
+     ("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc", 0)),               # WenQuanYi
+    (("/System/Library/Fonts/PingFang.ttc", 0), ("/System/Library/Fonts/PingFang.ttc", 0)),   # macOS
+    (("C:/Windows/Fonts/msyh.ttc", 0), ("C:/Windows/Fonts/msyhbd.ttc", 0)),                   # Windows
+]
+CJK_FONT_HELP = ("no Chinese/Japanese/Korean font found. Download Noto Sans SC (Google Fonts, "
+                 "free) and set REEL_CJK_FONT to its regular file (REEL_CJK_BOLD_FONT to its "
+                 "bold), or install fonts-noto-cjk.")
+
+
+def has_cjk(text):
+    return bool(CJK_RE.search(text or ""))
+
+
+def _font_spec(value):
+    path, _, index = value.partition("#")
+    return path, int(index or 0)
+
+
+@functools.lru_cache(maxsize=None)
+def cjk_font_files():
+    """((regular path, index), (bold path, index)) for CJK text, or None."""
+    reg = os.environ.get("REEL_CJK_FONT")
+    if reg:
+        bold = os.environ.get("REEL_CJK_BOLD_FONT") or reg
+        reg, bold = _font_spec(reg), _font_spec(bold)
+        return (reg, bold) if os.path.exists(reg[0]) else None
+    for reg, bold in CJK_FONT_CANDIDATES:
+        if os.path.exists(reg[0]):
+            return reg, (bold if os.path.exists(bold[0]) else reg)
+    return None
+
+
+@functools.lru_cache(maxsize=None)
+def text_font(path, size, text):
+    """The font to draw text in: the DejaVu font at path, or, when text has
+    any CJK character, the CJK font of the same weight. Raises when CJK
+    text has no font, so it never shows as empty boxes."""
+    from PIL import ImageFont
+    if not has_cjk(text):
+        return font(path, size)
+    files = cjk_font_files()
+    if not files:
+        raise RuntimeError(f"text {text[:40]!r}: {CJK_FONT_HELP}")
+    p, index = files[1] if path in (BOLD, MONO_BOLD) else files[0]
+    return ImageFont.truetype(p, size, index=index)
+
+
+# A line never starts with closing punctuation; it stays on the line before.
+NO_LINE_START = "，。、：；！？）》」』】〉”’%,.:;!?)"
+
+
+def wrap_tokens(text):
+    """The units a line may break between, each with whether a space goes
+    before it: whole words for spaced scripts, single characters for CJK
+    (which has no spaces), closing punctuation kept with what precedes it."""
+    toks = []
+    for chunk in text.split():
+        for k, piece in enumerate(re.findall(f"[{CJK_CHARS}]|[^{CJK_CHARS}]+", chunk)):
+            if toks and k > 0 and piece[0] in NO_LINE_START:
+                toks[-1] = (toks[-1][0] + piece, toks[-1][1])
+            else:
+                toks.append((piece, k == 0))
+    return toks
+
+
 def wrap(draw, text, fnt, max_w):
-    words, lines, cur = text.split(), [], ""
-    for w in words:
-        trial = f"{cur} {w}".strip()
-        if draw.textlength(trial, font=fnt) <= max_w:
+    lines, cur = [], ""
+    for tok, spaced in wrap_tokens(text):
+        trial = f"{cur} {tok}" if cur and spaced else cur + tok
+        if draw.textlength(trial, font=fnt) <= max_w or not cur:
             cur = trial
         else:
-            if cur:
-                lines.append(cur)
-            cur = w
+            lines.append(cur)
+            cur = tok
     if cur:
         lines.append(cur)
     return lines
@@ -114,7 +197,7 @@ def fit_lines(d, text, path, size, min_size, max_w, max_h, gap=1.18):
     into max_w with its lines inside max_h. Returns (font, lines, line
     height), or None: text is never clipped; it shrinks or the build stops."""
     for sz in range(size, min_size - 1, -2):
-        f = font(path, sz)
+        f = text_font(path, sz, text)
         lines = wrap(d, text, f, max_w)
         if all(d.textlength(ln, font=f) <= max_w for ln in lines) and \
                 len(lines) * sz * gap <= max_h:

@@ -83,6 +83,10 @@ def pointer_problems(p):
     for k in POINTER_REQUIRED:
         if not (isinstance(p.get(k), str) and p[k].strip()):
             errors.append(f"pointer needs '{k}'.")
+    cjk = [k for k in ("outlet", "title", "date") if has_cjk(p.get(k) if isinstance(p.get(k), str) else "")]
+    if cjk and not cjk_font_files():
+        errors.append(f"pointer {', '.join(repr(k) for k in cjk)} has Chinese, Japanese or Korean "
+                      f"text, and {CJK_FONT_HELP}")
     url = p.get("url")
     if isinstance(url, str) and url.strip() and not re.match(r"^https?://[^/\s]+", url):
         errors.append(f"pointer 'url' must be the article's full http(s) address, got {p['url']!r}.")

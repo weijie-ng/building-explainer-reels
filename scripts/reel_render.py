@@ -641,7 +641,8 @@ def pointer_height(scene, compact):
     if p:
         h += preview_card(p, compact).height + POINTER_READ_GAP + read_line(d, p["outlet"])[3]
     if scene.get("disclosure"):
-        h += DISCLOSURE_GAP + 24 * len(wrap(d, scene["disclosure"], font(REG, 17), 640))
+        h += DISCLOSURE_GAP + 24 * len(wrap(d, scene["disclosure"],
+                                            text_font(REG, 17, scene["disclosure"]), 640))
     return h
 
 
@@ -665,7 +666,7 @@ def draw_pointer(im, d, scene, y, compact):
         y += read_h
     if scene.get("disclosure"):
         # Small and muted, directly under the pointer.
-        f = font(REG, 17)
+        f = text_font(REG, 17, scene["disclosure"])
         yy = y + DISCLOSURE_GAP
         for line in wrap(d, scene["disclosure"], f, 640):
             d.text((40, yy), line, font=f, fill=SOURCE_TEXT)
