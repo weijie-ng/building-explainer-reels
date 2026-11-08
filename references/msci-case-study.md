@@ -18,7 +18,7 @@ A worked example of the skill: the MSCI reel in its corrected form (48.5s, 720×
 | Earlier builders with reusable steps | `~/workspace/v4_1_work/build_v4_1.py` (full build), `~/workspace/v4_1_work/make_map.py` (Natural Earth map), `~/workspace/v4_3_work/build_v4_3.py` and `fix_subs.py` (rebuilding single shots with their subtitles) |
 | Side-by-side composite of the template posts | First made by Muse with one-off ffmpeg stitching and PIL overlays (`quad_4_posts_side_by_side.mp4`); now `scripts/make_composite.py` |
 
-`scripts/build_reel.py` now covers the diagram, clip masking and image placement by keep box, so prefer it for new reels. Two things in this case study are superseded: the map is now AI-generated with Muse rather than drawn from Natural Earth (SKILL.md, "Map"), and the black-box lower-third subtitles are now word-by-word captions at the upper middle (SKILL.md, "Captions").
+`scripts/build_reel.py` now covers the diagram, clip masking and image placement by keep box, so prefer it for new reels. Three things in this case study are superseded: the map is now AI-generated with Muse rather than drawn from Natural Earth (SKILL.md, "Map"), the black-box lower-third subtitles are now word-by-word captions at the upper middle (SKILL.md, "Captions"), and the end card's pointer is now a link preview the build draws, not a screenshot of the article page (SKILL.md, "End card").
 
 ## Facts sheet
 
