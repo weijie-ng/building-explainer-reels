@@ -28,7 +28,7 @@ A clip an account posted (a reel, TikTok, Short or other video the narration att
 Examples: a minister's TikTok making the claim the reel checks, a viral Short of a deepfake ad, an influencer's reel repeating a rumour, a fact-checker's video quoted as a reaction.
 
 Build it with `python3 scripts/make_composite.py spec.json --out post.mp4 --preview` and one tile in `tiles` (`clip`, `account`, `post_url`, `posted`; optional `avatar`, `start`, `mask`). The source label defaults to "<account> • <posted>". Pass the output as `"clip"` with `"material": "real"`.
-- **Where it sits.** The account strip starts below the caption band (y=408), with the clip right under it (y=448), as wide as the frame allows. A tall clip runs past y=1030 to the frame's bottom edge: a 9:16 reel is shown whole at 468×832, about 42% of the frame; kept inside the content band it would be 327×582, about 21%. A wider post (square, 16:9) is centred in the content band when it fits there.
+- **Where it sits.** The account strip starts below the caption band (y=408), with the clip right under it (y=448), as wide as the headline's column allows (x 40–680). A tall clip runs past y=1030 to the frame's bottom edge: a 9:16 reel is shown whole at 468×832, about 42% of the frame; kept inside the content band it would be 327×582, about 21%. A wider post (square, 16:9) is centred in the content band when it fits there.
 - **What's under the platform's UI.** For a tall post the script prints how much of the clip sits below y=1030 (the bottom ~30% of a 9:16 reel), and `--preview` shades it. The platform's caption, name and buttons cover that part, so nothing the line depends on may be there. If the key moment or the claim's own text sits low in the clip, pick another slice, or show a screenshot of the post instead.
 - **Its text.** Its logos, title boxes and on-screen graphics stay: inside the post they are part of the receipt and collide with nothing. Mask its running captions (`mask`, fractions of the clip) where they would be read as part of the reel, including below y=1030, where they would stack under the platform's own caption.
 - **Behind it** is the reel's blue over a blurred copy of the clip, as behind any image shown whole.
@@ -48,7 +48,7 @@ Build it with `python3 scripts/make_composite.py spec.json --out post.mp4 --prev
 
 Build it with `python3 scripts/make_composite.py spec.json --out composite.mp4 --preview`:
 - **What the script does:**
-  - places 2–4 tiles in the content band, between the caption band and y=1030, with the reel's blue over a blurred fill behind them;
+  - places 2–4 tiles in the content band, between the caption band and y=1030 and inside the headline's column (x 40–680), 16px apart, with the reel's blue over a blurred fill behind them. Side by side (`row`), each clip is shown whole: when the band caps the height, the tile narrows rather than cropping the clip. The `grid` crops each clip around its `focus`;
   - draws each account's avatar and name exactly as given;
   - masks the source clips' captions per tile;
   - can bring the tiles in one after another (`stagger`).

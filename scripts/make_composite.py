@@ -15,7 +15,8 @@ composite of real clips"):
   side inside the content band.
 
 Either way none of the reel's own text lands on a tile or an account
-name. Behind the tiles is the reel's blue over a blurred copy of the
+name, and the tiles stay inside the headline's column (x 40-680), 16px
+apart, so they never run to the frame's side edges. Behind the tiles is the reel's blue over a blurred copy of the
 first clip, like the blurred fill behind any image. Each tile is the
 account's own clip, only cropped, scaled, trimmed and synced; the source
 clips' burned-in captions can be masked per tile. Above each tile is the
@@ -62,10 +63,12 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from reel_common import (W, H, FPS, BLUE, BLUR_TINT, CAPTION_TOP, CAPTION_LINES,  # noqa: E402
-                         CAPTION_LINE_H, CAPTION_CLEAR, KEEP_BOTTOM, SAFE_TOP, EDGE,
-                         WHITE, BOLD, font, run, frames_for, probe_duration)
+                         CAPTION_LINE_H, CAPTION_CLEAR, KEEP_BOTTOM, SAFE_TOP,
+                         HEADLINE_WRAP, WHITE, BOLD, font, run, frames_for, probe_duration)
 
-GAP = 10            # px between tiles
+SIDE = (W - HEADLINE_WRAP) // 2   # side padding: tiles stay inside the headline's
+                                  # column (x 40-680), never near the frame edge
+GAP = 16            # px between tiles
 CHIP_H = 40         # account strip above each tile
 AVATAR = 30         # avatar diameter
 NAME_SIZE = 22      # account name size; shrinks to NAME_MIN to fit, never truncated
@@ -129,12 +132,15 @@ def band(spec):
 
 def layout(spec, sizes):
     """Cells (x, y, w, h) for each tile's video, below its account strip.
+    Every layout keeps the tiles inside the headline's column (SIDE padding
+    on both sides) with GAP between them.
     Post (one tile): the clip whole, in its own shape, as large as the frame
     allows below the caption band; a tall clip runs past the platform's UI
     to the bottom edge, a wider one is centred in the content band.
     Grid: 2 columns, tiles as large as the band allows (a portrait clip is
     cropped around its focus). Row: 1 x N, each tile keeping its clip's own
-    shape, so a portrait clip is shown whole but small."""
+    shape, so a portrait clip is shown whole but small: when the band caps
+    the height, the tile narrows instead of cropping the clip."""
     n = len(sizes)
     top, bottom = band(spec)
     band_h = bottom - top
@@ -146,7 +152,7 @@ def layout(spec, sizes):
         fail("one tile takes the 'post' layout (or 'auto').")
     if n > 1 and mode == "post":
         fail(f"the 'post' layout is for one tile; {n} tiles take 'grid', 'row' or 'auto'.")
-    usable_w = W - 2 * EDGE
+    usable_w = W - 2 * SIDE
     if mode == "post":
         sw, sh = sizes[0]
         y = top + CHIP_H
@@ -159,6 +165,7 @@ def layout(spec, sizes):
         tw = (usable_w - (n - 1) * GAP) // n
         aspect = sum(h / w for w, h in sizes) / n
         th = min(int(tw * aspect), band_h - CHIP_H)
+        tw = min(tw, int(th / aspect))   # capped height: narrow the tile, never crop the clip
         y = top + (band_h - CHIP_H - th) // 2 + CHIP_H
         x0 = (W - (n * tw + (n - 1) * GAP)) // 2
         cells = [(x0 + i * (tw + GAP), y, tw, th) for i in range(n)]
