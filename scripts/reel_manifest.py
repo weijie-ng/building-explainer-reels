@@ -322,6 +322,38 @@ def panel_problems(p):
     return []
 
 
+def stat_errors(sid, st):
+    """A stat is one figure ("value", "label") or 2-3 related figures
+    ("figures": [{"value", "label", "at"?}, ...]) sharing one "source"."""
+    if not isinstance(st, dict):
+        return [f"scene {sid}: 'stat' must be an object."]
+    errors = []
+    figs = st.get("figures")
+    if figs is not None:
+        if st.get("value") or st.get("label"):
+            errors.append(f"scene {sid}: stat has both 'figures' and 'value'/'label'; "
+                          "use one form.")
+        if not isinstance(figs, list) or not 2 <= len(figs) <= STAT_MAX_FIGURES:
+            return errors + [f"scene {sid}: stat 'figures' takes 2 to {STAT_MAX_FIGURES} related "
+                             "figures; use 'value' and 'label' for one, and split unrelated "
+                             "figures into their own stat shots."]
+    else:
+        figs = [st]
+    for fg in figs:
+        if not (isinstance(fg, dict) and fg.get("value") and fg.get("label")):
+            errors.append(f"scene {sid}: each stat figure needs 'value' and 'label'.")
+        elif len(str(fg["value"])) > 12:
+            errors.append(f"scene {sid}: stat value {fg['value']!r} is over 12 characters; "
+                          "put the words in 'label'.")
+    if not errors and not st.get("source"):
+        shown = ", ".join(repr(fg["value"]) for fg in figs)
+        errors.append(f"scene {sid}: stat {shown} needs 'source' (outlet + date): "
+                      "a figure always shows where it comes from.")
+    if st.get("motion_clip") and not os.path.exists(st["motion_clip"]):
+        errors.append(f"scene {sid}: stat motion_clip not found: {st['motion_clip']}")
+    return errors
+
+
 def validate(scenes, args, man=None):
     man = man or {}
     errors, warnings = [], []
@@ -443,16 +475,7 @@ def validate(scenes, args, man=None):
                             "works if you keep the still.")
         st = s.get("stat")
         if st is not None:
-            if not (isinstance(st, dict) and st.get("value") and st.get("label")):
-                errors.append(f"scene {sid}: 'stat' needs 'value' and 'label'.")
-            elif not st.get("source"):
-                errors.append(f"scene {sid}: stat {st['value']!r} needs 'source' (outlet + date): "
-                              "a figure always shows where it comes from.")
-            elif len(str(st["value"])) > 12:
-                errors.append(f"scene {sid}: stat value {st['value']!r} is over 12 characters; "
-                              "put the words in 'label'.")
-            if isinstance(st, dict) and st.get("motion_clip") and not os.path.exists(st["motion_clip"]):
-                errors.append(f"scene {sid}: stat motion_clip not found: {st['motion_clip']}")
+            errors += stat_errors(sid, st)
         if s.get("wipe") not in (None, False, True, "left", "up"):
             errors.append(f"scene {sid}: 'wipe' must be \"left\" or \"up\", got {s['wipe']!r}.")
         if s.get("wipe") and i == 0 and j == 0:

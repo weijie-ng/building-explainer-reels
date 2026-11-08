@@ -59,7 +59,7 @@ Manifest (see examples/sample-manifest.json):
   "title": "...", "output": "reel.mp4", "voice": "...", "max_duration": 60,
   "music_bed": true,
   "loop_back": true,               // one of the last two sentences echoes the hook's question
-  "sfx": true,                     // generated low hit when a stat lands (false: none)
+  "sfx": true,                     // generated low hit as each stat figure lands (false: none)
   "allow_save_prompt": false,      // true only if the user asked for "save this"
   "background": {"preset": "posts"},  // the story background behind every shot
                                    // that would be plain blue: posts | network |
@@ -149,6 +149,12 @@ Scene types:
   that says it (or "at" seconds): a plain number counts up, anything else
   ("0 of 5", "21 OCT") pops in. Over the story background, or over an AI
   motion clip like the diagram. Use material "recreated".
+  Related figures (2-3 about the same thing, such as how many posts and how
+  many views they drew) can share the shot: "figures": [{"value": "~400",
+  "label": "posts"}, {"value": "~12M", "label": "views"}] in place of
+  "value"/"label", each with its own optional "at". They stack in the order
+  said, one size, each landing on its own word with its own hit. The one
+  "source" names every figure's source.
 - Maps are not drawn here: generate one with Muse and pass it as "clip" or
   "image" with "material": "ai" and "schematic": true (SKILL.md, "Map").
 - timeline: {"events": [{"time": "29 OCT 20:05", "text": "...",
@@ -278,7 +284,7 @@ from reel_subs import (WHISPER_MODEL, whisper_words, match_words, apply_nudges, 
 from reel_manifest import (load_manifest, validate, check_tools, expand_shots,  # noqa: E402
                            hook_indices, story_spine, sentences)
 from reel_render import (render_shot, source_label, diagram_plate, header_bottom,  # noqa: E402
-                         apply_wipe, stat_time, summary_hold, card_rows,
+                         apply_wipe, stat_times, summary_hold, card_rows,
                          captioned)
 from reel_pace import pace_report, print_table, shot_kind, coverage  # noqa: E402
 from reel_continuity import Continuity  # noqa: E402
@@ -555,7 +561,8 @@ class Build:
                     sh["_background"] = self.man["background"]
                     sh["_reel_start"] = round(t_shot, 4)
                 if sh.get("stat"):
-                    self.cues.append(("hit", t_shot + stat_time(sh, shot_dur), b["i"]))
+                    # One hit per figure, as each lands.
+                    self.cues += [("hit", t_shot + t, b["i"]) for t in stat_times(sh, shot_dur)]
                 plan.append((b["i"], j, sh, shot_dur, f"scene{b['i']}_{j}"))
         cont.finish()
         if hold_errors:

@@ -1037,85 +1037,142 @@ def summary_panels_shown(scene, dur):
 
 STAT_COUNT_SECONDS = 0.6     # a numeric stat counts up over this, ease-out
 STAT_POP = (0.72, 0.9, 1.06, 1.0)   # a non-numeric stat pops in over 4 steps (0.05s each)
+STAT_GAP = 40                # px between stacked figures
 
 
-def stat_time(scene, dur):
-    """When the figure lands: the narrated word that starts with the
-    figure's digits (the same measured word times as the captions), else
-    stat.at, else 0.3s into the shot."""
-    st = scene["stat"]
-    if "at" in st:
-        return max(0.0, min(float(st["at"]), dur - 0.3))
-    digits = _norm_word(st["value"])
+def stat_figures(st):
+    """A stat's figures, in the order they are said: "figures" (related
+    figures sharing the shot), or the single "value"/"label"/"at"."""
+    if st.get("figures"):
+        return st["figures"]
+    return [{k: st[k] for k in ("value", "label", "at") if k in st}]
+
+
+def stat_times(scene, dur):
+    """When each figure lands, in shot time: the narrated word that starts
+    with the figure's digits (the same measured word times as the captions),
+    searched after the previous figure's word, so a repeated number lands
+    on its own mention; else the figure's "at"; else 0.3s into the shot for
+    the first figure and one count-up after the previous one for the rest."""
     words = [_norm_word(w) for w in scene.get("narration", "").split()]
     wt = scene.get("_word_times")
-    if digits and wt and len(wt) == len(words):
-        off = scene.get("_shot_start", 0.0)
-        for n, w in enumerate(words):
-            if w and (w.startswith(digits) or digits.startswith(w)) and wt[n] >= off - 0.05:
-                return max(0.0, min(wt[n] - off, dur - 0.3))
-    return min(0.3, dur / 4)
+    timed = bool(wt) and len(wt) == len(words)
+    off = scene.get("_shot_start", 0.0)
+    times, n0 = [], 0
+    for i, fig in enumerate(stat_figures(scene["stat"])):
+        t = None
+        if "at" in fig:
+            t = float(fig["at"])
+        else:
+            digits = _norm_word(str(fig["value"]))
+            if digits and timed:
+                for n in range(n0, len(words)):
+                    w = words[n]
+                    if w and (w.startswith(digits) or digits.startswith(w)) \
+                            and wt[n] >= off - 0.05:
+                        t, n0 = wt[n] - off, n + 1
+                        break
+        if t is None:
+            t = min(0.3, dur / 4) if i == 0 else times[-1] + STAT_COUNT_SECONDS
+        t = max(times[-1] if times else 0.0, min(t, dur - 0.3))
+        times.append(max(0.0, t))
+    return times
 
 
 def render_stat(scene, dur):
-    """A stat shot: one sourced figure, big, with a short label under it,
-    arriving on the word that says it. A plain number counts up to its value
-    (STAT_COUNT_SECONDS, ease-out); anything else ("0 of 5", "21 OCT") pops
-    in. The label shows from the first frame. Over the story background (or the
-    plain blue without one) with grain, or as transparent stages over an AI
-    motion clip ("motion_clip"), like the diagram.
+    """A stat shot: one sourced figure, or up to STAT_MAX_FIGURES related
+    ones stacked in the order they are said, each big with a short label
+    under it and arriving on the word that says it. A plain number counts up
+    to its value (STAT_COUNT_SECONDS, ease-out); anything else ("0 of 5",
+    "21 OCT") pops in. The first figure's label shows from the first frame, so
+    the shot is never empty while the voice leads up to it; each later figure
+    arrives with its label, in a place kept for it from the start, so nothing
+    moves when it lands. Over the story background (or the plain blue
+    without one) with grain, or as transparent stages over an AI motion clip
+    ("motion_clip"), like the diagram.
 
     stat: {"value": "9.2", "label": "severity score, 10 = most severe",
            "source": "PHP ADVISORY • 21 OCT 2026", "motion_clip": "...",
-           "clip_start": 0, "at": 0.4}"""
+           "clip_start": 0, "at": 0.4}
+    or    {"figures": [{"value": "~400", "label": "posts"},
+                       {"value": "~12M", "label": "views", "at": 1.2}],
+           "source": "CNA VERIFY • 29 OCT 2026"}"""
     from PIL import Image, ImageDraw
     st = scene["stat"]
+    figs = stat_figures(st)
     transparent = bool(st.get("motion_clip"))
     layer = text_layer(scene)[0]
-    value = str(st["value"])
+    values = [str(fg["value"]) for fg in figs]
     top, bottom = content_top(scene), KEEP_BOTTOM
     d0 = ImageDraw.Draw(Image.new("RGB", (8, 8)))
-    size = 230
-    while size > 60 and d0.textlength(value, font=font(BOLD, size)) > W - 80:
-        size -= 6
     f_lab = font(BOLD, 40)
-    lab_lines = wrap(d0, st.get("label", ""), f_lab, W - 120)
-    block = size + 30 + 50 * len(lab_lines)
-    y_val = top + max(0, (bottom - top - block) // 2) - 20
+    labs = [wrap(d0, fg.get("label", ""), f_lab, W - 120) for fg in figs]
 
-    def frame(text, scale=1.0, label=True):
+    def block(sz):
+        return sum(sz + 30 + 50 * len(ln) for ln in labs) + STAT_GAP * (len(figs) - 1)
+
+    # One size for every figure, so related figures read as one set.
+    size = 230
+    while size > 60 and (max(d0.textlength(v, font=font(BOLD, size)) for v in values) > W - 80
+                         or block(size) > bottom - top):
+        size -= 6
+    ys, y = [], top + max(0, (bottom - top - block(size)) // 2) - 20
+    for ln in labs:
+        ys.append(y)
+        y += size + 30 + 50 * len(ln) + STAT_GAP
+
+    def frame(states):
+        """states[i]: None (figure i not in yet), or (text, scale, label)."""
         im = Image.new("RGBA", (W, H), (0, 0, 0, 0)) if transparent else canvas(scene)
         d = ImageDraw.Draw(im)
-        f = font(BOLD, max(8, round(size * scale)))
-        tw = d.textlength(text, font=f)
-        yy = y_val + (size - f.size) / 2
-        d.text(((W - tw) / 2, yy), text, font=f, fill=YELLOW, stroke_width=4, stroke_fill=BLACK)
-        if label:
-            ly = y_val + size + 30
-            for ln in lab_lines:
-                lw = d.textlength(ln, font=f_lab)
-                d.text(((W - lw) / 2, ly), ln, font=f_lab, fill=WHITE, stroke_width=3,
-                       stroke_fill=BLACK)
-                ly += 50
+        for y_val, lab_lines, s in zip(ys, labs, states):
+            if s is None:
+                continue
+            text, scale, label = s
+            f = font(BOLD, max(8, round(size * scale)))
+            tw = d.textlength(text, font=f)
+            yy = y_val + (size - f.size) / 2
+            d.text(((W - tw) / 2, yy), text, font=f, fill=YELLOW, stroke_width=4,
+                   stroke_fill=BLACK)
+            if label:
+                ly = y_val + size + 30
+                for ln in lab_lines:
+                    lw = d.textlength(ln, font=f_lab)
+                    d.text(((W - lw) / 2, ly), ln, font=f_lab, fill=WHITE, stroke_width=3,
+                           stroke_fill=BLACK)
+                    ly += 50
         return im
 
-    t0 = stat_time(scene, dur)
-    # The label is on screen from the start, so the shot is never empty
-    # while the voice leads up to the figure.
-    stages = [(frame("", label=True), layer, 0.0)] if t0 > 0 else []
-    m = re.fullmatch(r"([^\d]*)(\d+(?:\.\d+)?)([^\d]*)", value)
-    if m and float(m.group(2)) > 0:
-        pre, num, post = m.groups()
-        dec = len(num.split(".")[1]) if "." in num else 0
-        steps = max(2, round(STAT_COUNT_SECONDS * FPS / 2))
-        for k in range(steps + 1):
-            p = k / steps
-            e = 1 - (1 - p) ** 3
-            shown = f"{pre}{float(num) * e:.{dec}f}{post}" if k < steps else value
-            stages.append((frame(shown), layer, t0 + p * STAT_COUNT_SECONDS))
-    else:
-        for k, sc in enumerate(STAT_POP):
-            stages.append((frame(value, sc), layer, t0 + 0.05 * k))
+    def steps_for(value, t0):
+        """[(time, state)] for one figure arriving at t0."""
+        m = re.fullmatch(r"([^\d]*)(\d+(?:\.\d+)?)([^\d]*)", value)
+        if m and float(m.group(2)) > 0:
+            pre, num, post = m.groups()
+            dec = len(num.split(".")[1]) if "." in num else 0
+            steps = max(2, round(STAT_COUNT_SECONDS * FPS / 2))
+            out = []
+            for k in range(steps + 1):
+                p = k / steps
+                e = 1 - (1 - p) ** 3
+                shown = f"{pre}{float(num) * e:.{dec}f}{post}" if k < steps else value
+                out.append((t0 + p * STAT_COUNT_SECONDS, (shown, 1.0, True)))
+            return out
+        return [(t0 + 0.05 * k, (value, sc, True)) for k, sc in enumerate(STAT_POP)]
+
+    tracks = [steps_for(v, t) for v, t in zip(values, stat_times(scene, dur))]
+    # Before its word: the first figure shows its label alone; later figures nothing.
+    start = [("", 1.0, True) if i == 0 else None for i in range(len(figs))]
+    times = sorted({0.0} | {t for tr in tracks for t, _ in tr})
+    stages = []
+    for t in times:
+        states = []
+        for tr, s0 in zip(tracks, start):
+            s = s0
+            for tt, st_ in tr:
+                if tt <= t:
+                    s = st_
+            states.append(s)
+        stages.append((frame(states), layer, t))
     return stages
 
 

@@ -56,6 +56,7 @@ SUMMARY_BUILD_SHARE = 0.4    # ...and every panel is in by this share of the sho
 SUMMARY_HOLD_MIN = 1.5       # the finished card holds at least this long (s)...
 SUMMARY_HOLD_PER_PANEL = 0.4 # ...or this per panel, whichever is longer
 END_CARD_HOLD_MIN = 1.5      # the end card runs at least this long (s)
+STAT_MAX_FIGURES = 3         # related figures that may share one stat shot
 GRAIN_ALPHA = 0.035          # faint grain on flat graphics, as in the reference
 GRAIN_FRAMES = 4             # grain frames cycled (enough to read as live)
 
