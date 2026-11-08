@@ -8,7 +8,26 @@ from reel_common import *  # noqa: F401,F403
 VISUAL_KEYS = ("image", "fit_image", "clip", "card", "diagram", "end_card",
                "timeline", "keep",
                "image_source", "full_bleed", "clip_mask",
-               "clip_start", "clip_end", "move", "summary", "schematic", "stat", "wipe")
+               "clip_start", "clip_end", "move", "summary", "schematic", "stat", "wipe",
+               "planned")
+
+# A shot whose asset isn't made yet carries its row from the approved plan
+# instead of a visual (SKILL.md, "User in the loop"): {"kind", "placement",
+# "visual"}. Only these stages accept one, because they render no shot: the
+# dry run and narrate need the whole script, diagram-brief the whole timing.
+PLANNED_KINDS = ("video", "built", "still", "end")
+PLANNING_STAGES = ("check", "narrate", "diagram-brief")
+
+
+def rendered_beats(scenes, args):
+    """Indices of the beats this run renders, so a planned shot in one of
+    them is refused. A preview has already cut the list at --through."""
+    stage = "check" if getattr(args, "dry_run", False) else getattr(args, "stage", "all")
+    if stage in PLANNING_STAGES:
+        return set()
+    if stage == "hook":
+        return set(hook_indices(scenes))
+    return set(range(len(scenes)))
 
 
 def expand_shots(scene):
@@ -252,10 +271,12 @@ def validate(scenes, args, man=None):
     man = man or {}
     errors, warnings = [], []
     hook = set(hook_indices(scenes))
+    rendered = rendered_beats(scenes, args)
     units = [(i, j, scene, s) for i, scene in enumerate(scenes)
              for j, s in enumerate(expand_shots(scene))]
     for i, j, scene, s in units:
         sid = scene.get("id", f"#{i}") + (f" shot {j + 1}" if scene.get("shots") else "")
+        pl = s.get("planned")
         if s.get("material") not in MATERIALS:
             errors.append(f"scene {sid}: 'material' must be one of {sorted(MATERIALS)}, "
                           f"got {s.get('material')!r}.")
@@ -269,7 +290,20 @@ def validate(scenes, args, man=None):
             warnings.append(f"scene {sid}: 'body' dropped (no double text); keep it in narration.")
         has_visual = any(s.get(k) for k in ("image", "clip", "card", "diagram", "summary",
                                             "timeline", "stat"))
-        if not has_visual and not s.get("end_card") and not args.allow_plain:
+        if pl is not None:
+            if not (isinstance(pl, dict) and pl.get("kind") in PLANNED_KINDS
+                    and pl.get("placement") and pl.get("visual")):
+                errors.append(f"scene {sid}: 'planned' needs 'kind' (one of "
+                              f"{', '.join(PLANNED_KINDS)}), 'placement' and 'visual', copied "
+                              "from the approved plan's shot table.")
+            elif i in rendered:
+                errors.append(f"scene {sid}: still planned ({pl['visual']!r}), and this stage "
+                              "renders it. Put in its approved asset, following the planned "
+                              "placement, and remove 'planned' (SKILL.md, \"User in the loop\").")
+            elif any(s.get(k) for k in ("image", "clip", "card", "diagram", "timeline", "stat")) \
+                    or (s.get("end_card") and s.get("pointer")):
+                warnings.append(f"scene {sid}: has its visual; remove 'planned'.")
+        elif not has_visual and not s.get("end_card") and not args.allow_plain:
             errors.append(f"scene {sid}: no image, clip, card, diagram or timeline. Add one, or "
                           "pass --allow-plain and justify it in the delivery notes.")
         for key in ("image", "clip", "audio"):

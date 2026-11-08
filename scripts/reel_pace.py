@@ -13,6 +13,10 @@ Shot kinds:
          diagram, timeline, stat
   still  a still image (creep, push, pan or inset only)
   end    the end card (not counted)
+
+A shot still "planned" (no asset yet; SKILL.md, "User in the loop") counts
+as the kind its plan row gives, so the pace is checked before any asset is
+made. Its coverage is unknown until the image is in.
 """
 
 from reel_common import *  # noqa: F401,F403
@@ -33,13 +37,15 @@ def shot_kind(sh):
         return "built"
     if sh.get("image"):
         return "still"
+    if isinstance(sh.get("planned"), dict) and sh["planned"].get("kind"):
+        return sh["planned"]["kind"]
     return "plain"
 
 
 def coverage(sh):
     """Fraction of the 720x1280 frame the still image itself covers (not
     its blurred fill), or None for other shots."""
-    if shot_kind(sh) != "still":
+    if shot_kind(sh) != "still" or not sh.get("image"):
         return None
     from PIL import Image
     from reel_render import still_layout
@@ -64,9 +70,11 @@ def pace_report(shots):
     coverage, for the printed table and the shot list."""
     rows, warnings, t = [], [], 0.0
     for i, j, sh, dur, name in shots:
+        planned = sh.get("planned") if isinstance(sh.get("planned"), dict) else {}
         rows.append({"name": name, "start": t, "end": t + dur, "dur": dur, "kind": shot_kind(sh),
                      "asset": asset_of(sh), "coverage": coverage(sh), "wipe": bool(sh.get("wipe")),
-                     "where": f"beat {sh.get('id', i)} shot {j + 1}"})
+                     "where": f"beat {sh.get('id', i)} shot {j + 1}",
+                     "planned": planned.get("visual") if not asset_of(sh) else None})
         t += dur
     body = [r for r in rows if r["kind"] != "end"]
     total = sum(r["dur"] for r in body) or 1.0
@@ -140,6 +148,8 @@ def print_table(rows, out=sys.stdout):
     for r in rows:
         cov = f"{100 * r['coverage']:3.0f}%" if r["coverage"] is not None else "   -"
         asset = os.path.basename(r["asset"]) if r["asset"] else ""
+        if r.get("planned"):
+            asset = f"planned: {r['planned']}"
         print(f"  {r['start']:6.2f}-{r['end']:6.2f}s  {r['kind']:5s} cover {cov}"
               f"{'  wipe' if r['wipe'] else ''}  {r['where']}  {asset}", file=out)
     body = [r for r in rows if r["kind"] != "end"]

@@ -28,14 +28,16 @@ without rebuilding the rest:
            sceneN.wav, timeline.json. Stops if what Whisper hears doesn't match
            the script word for word (a name off by a letter or a missed
            first word only warns; see reel_subs.match_words). Cached per beat: unchanged narration is
-           not re-spoken or re-transcribed.
+           not re-spoken or re-transcribed. Prints each beat's and each
+           shot's measured time (the length an asset must cover).
   hook     the hook's beats only (leading beats whose id starts with "hook",
            or the first beat): narration, shots, captions, audio ->
            <workdir>/hook/hook.mp4, then its length, word count and sync.
   preview  with --through ID: the reel from its first beat up to and
            including beat ID (narration, shots, captions, audio) ->
            <workdir>/preview/preview.mp4. Only those beats are checked, so
-           later beats' assets need not exist yet, and the loop-back check
+           later beats' assets need not exist yet (they may still be
+           "planned"), and the loop-back check
            waits for the full reel. For building shot by shot with the user
            (SKILL.md, "User in the loop"); cached like the other stages.
   shots    render every shot to <workdir>/shots/. Cached: a shot is
@@ -108,6 +110,15 @@ Manifest (see examples/sample-manifest.json):
                                    // the beat before (SKILL.md, "Bridge every
                                    // section change"); the dry run prints the
                                    // story spine and warns at cold openers
+    "planned": {"kind": "video", "placement": "full-bleed",
+                "visual": "AI video: a vault door unlatching"},
+                                   // in place of a visual whose asset isn't
+                                   // made yet: the shot's row from the
+                                   // approved plan (kind: video | built |
+                                   // still | end). Accepted by check, narrate
+                                   // and diagram-brief; every stage that
+                                   // renders the beat refuses it (SKILL.md,
+                                   // "User in the loop")
     "audio": null,                 // optional pre-made narration; skips TTS
     "shots": [                     // optional: cut the scene into several
       {"image": "a.jpg", "image_source": "...", "headline": "..."},
@@ -207,8 +218,8 @@ wins):
   content (keep box, diagram, card body, timeline, summary panels) starts
   below the two-line caption band.
 - Every scene needs a visual (image, clip, card, diagram, timeline) unless it is
-  the end card or --allow-plain is passed. "body" paragraphs are dropped
-  (no double text).
+  the end card or --allow-plain is passed, or, before any stage that renders
+  it, carries "planned". "body" paragraphs are dropped (no double text).
 - A disinformation scene may not open the reel or be the end card.
 - No status tags: a scene with "label" or "label_color" is rejected.
 - Caption timing: Whisper word timestamps from each beat's own narration
@@ -907,6 +918,18 @@ def main():
         if stage == "narrate":
             for x in b.timeline:
                 print(f"  {x['start']:6.2f}-{x['start'] + x['dur']:6.2f}s  {x['id']}")
+                shots = expand_shots(b.scenes[x["i"]])
+                total_f = frames_for(x["dur"])
+                wts = [sh.get("weight", 1) for sh in shots]
+                bounds = [round(total_f * sum(wts[:j]) / sum(wts)) for j in range(len(shots) + 1)]
+                for j, sh in enumerate(shots):
+                    pl = sh.get("planned") if isinstance(sh.get("planned"), dict) else {}
+                    what = f"  planned: {pl['visual']}" if pl.get("visual") else ""
+                    print(f"      shot {j + 1}: {(bounds[j + 1] - bounds[j]) / FPS:.2f}s{what}")
+            planned = sum(1 for s in b.scenes for sh in expand_shots(s) if sh.get("planned"))
+            if planned:
+                print(f"{planned} shot(s) still planned. Each asset must run at least its shot's "
+                      "time; put it in and remove 'planned' before its beat is rendered.")
             return 0
     else:
         b.load_timeline(len(b.scenes))

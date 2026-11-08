@@ -330,7 +330,7 @@ Copy this checklist into your working notes and tick items as you go:
 ```
 Reel progress:
 - [ ] 1. Confirm topic, length, tone; ask: in the loop?
-- [ ] 1a. In the loop only: plan approved (after steps 2-3), then shot by shot (see "User in the loop")
+- [ ] 1a. In the loop: from here on, work through the checklist in "User in the loop" instead
 - [ ] 2. Facts sheet (claims, denials, sources, real-vs-false distinction)
 - [ ] 3. Script
 - [ ] 4. Shot list + assets (real receipts, AI illustrations)
@@ -340,10 +340,10 @@ Reel progress:
 - [ ] 8. Deliver with notes
 ```
 
-1. **Confirm before building.** Topic, length (default under 60s), and loaded argument-led tone or neutral tone. Do not reinterpret an ambiguous topic. For every new reel (from links or a topic, not a review or a fix to an existing reel), also ask whether the user wants to be in the loop: see the plan first and approve the reel shot by shot. If yes, follow "User in the loop" below; if no, carry on through the steps without further stops.
+1. **Confirm before building.** Topic, length (default under 60s), and loaded argument-led tone or neutral tone. Do not reinterpret an ambiguous topic. For every new reel (from links or a topic, not a review or a fix to an existing reel), also ask whether the user wants to be in the loop: see the plan first and approve the reel shot by shot. If yes, switch to "User in the loop" below and work through its checklist instead of this one; if no, carry on through the steps without further stops.
 2. **Facts sheet.** Write `facts.md`: each claim with its status, its denial, the source and date for every figure and quote, and the careful distinction. For a developing story, add a timeline table (time with time zone, event, source) for the timeline section. Add a **tensions** table: every pair of facts that seem to pull against each other (a large number next to a small one, a confirmation next to a denial, "dangerous" next to "failed"), with the reason both hold and its source, or "no source gives a reason". The script bridges each pair that sits in adjacent or nearby beats (see "Bridge every contrast"). Cut anything that cannot be sourced. The verifier checks the reel against this file.
 3. **Script.** About 130–140 words for 55s. Keep every line at the source's strength: "impact" stays "impact" (not "lost"), "likely" stays "likely" (not "did it" or "blame"), "may be" stays "may be", estimates keep "about". Credit wording to whoever said it: news outlets are not "analysts". Re-check the whole transcript against facts.md every time a line changes, including trims to fit the length. Keep each claim's status (from facts.md) in its wording, not in a tag, and put each claim's counterpart (denial, confirmed figure, statement) in the same beat. Then read the script aloud against "Write like a person talking" (Tone and sourcing) and "Story shape", and check it with C13 and C16 in `references/verification-checklist.md`: rewrite failing lines and beat changes, recheck accuracy (C12), and repeat until all pass.
-4. **Shot list and assets.** Follow "Asset gathering" for every shot and fill the asset log in facts.md. How the work is split depends on the platform:
+4. **Shot list and assets.** Follow "Asset gathering" for every shot and fill the asset log in facts.md.
    How the work is split depends on the platform: helper agents for searching and downloading, a live browser that returns the screenshot file itself (not a description), and asking the user for screenshots when no agent has one. See "Platform: who gathers what" in `references/asset-gathering.md`.
 
    Set a `keep` box for every image. Capture the end card's pointer as a screenshot of a referenced article page (outlet name, headline, byline; relative times cropped out at capture, capture date recorded; a wide strip when the end card carries summary panels; see "End card"). Look at every asset once before writing the manifest.
@@ -381,23 +381,59 @@ Reel progress:
 
 When the user chose to be in the loop (Workflow, step 1), they approve the plan before any asset is made, and then every shot. Each approval is a stop: show the work, wait for their reply, and never continue on silence or on an assumed yes. A change they ask for goes only into what they asked about; everything they already approved stays as it was.
 
-**1. The plan.** Do the facts sheet and script first (steps 2–3, with all their checks), then show the plan in one message:
+**The loop changes when the user sees the work, not how the reel is made.** Every rule in this skill still applies, and `scripts/build_reel.py` is still the only thing that lays out a shot. So every view of a shot in its layout (headline, source label, captions, the image placed by its keep box) is a frame the build rendered. Never show a stand-in for one: a frame put together with PIL, ffmpeg text or HTML, or an AI image or video with the words drawn in. The build won't produce that layout, so the user would be approving a different reel.
+
+Work through this checklist instead of the Workflow one:
+
+```
+Reel progress (in the loop):
+- [ ] 1. Confirm topic, length, tone (Workflow step 1)
+- [ ] 2. Facts sheet and script, with all their checks (Workflow steps 2-3)
+- [ ] 3. Plan, with its shot table -> approved
+- [ ] 4. Manifest with planned shots; --stage narrate; --dry-run warnings fixed
+- [ ] 5. Hook: each asset approved; --stage hook passes; render approved
+- [ ] 6. Each later beat, in order: each asset approved; --stage preview; render approved
+- [ ] 7. Whole-reel build (sync check PASS), verification gate PASS, delivery (Workflow steps 6-8)
+```
+
+**3. The plan.** Before writing it, read "Layout" and "Play as a video, not a slideshow" (Visual spec) and `references/php2shell-case-study.md`: the plan fixes every shot's layout, and a finished shot is costly to change. Then show the plan in one message:
 - the angle: the hook's question or claim, length and tone;
 - the key facts, each with its status and source (a short list from facts.md, not the whole file);
 - the narration script, beat by beat;
-- a shot table: beat, rough time (from about 150 words a minute), visual, real or AI, and source. Plan it against the shot rules (Visual spec) and the pace rules ("Play as a video, not a slideshow"), because a finished shot is costly to change.
+- a shot table, one row per shot (super changes included):
+  - **Time**: rough, from about 150 words a minute.
+  - **Headline**: written to "Headlines", so the user approves what each shot says with the sound off.
+  - **Kind**: what the pace report counts: video (a real or AI clip), built (headline card, stat, diagram, timeline), still, or end (the end card).
+  - **Placement**: how it sits in the frame, as the Layout rules allow: full-bleed (every hook shot), zoomed to a keep box (say on what), shown whole, inset, or one of the build's graphics (card, stat, diagram, timeline, end card).
+  - **Visual**, **real or AI**, and **source**.
 
-Gather or generate nothing before the plan is approved: screenshots and AI generations take time, and a changed line can make them useless. Revise and show the changed parts again until the user approves. A changed line goes back through the script checks (step 3) first.
+  Three rows, each from a different kind of story:
 
-**2. Narration.** Write the manifest from the approved plan and leave each beat's visual to be filled in. The narration of the approved script sets every shot's timing, and the preview speaks it beat by beat as it goes.
+  | Beat | Time | Headline | Kind | Placement | Visual | Real or AI | Source |
+  |---|---|---|---|---|---|---|---|
+  | hook | 0–4s | BINANCE PUTS HACK'S IMPACT AT $6.3B | video | full-bleed | AI video: a vault door swinging open onto an empty server room | AI | — |
+  | chain | 12–15s | POSTS CLAIM A SECRET AMBASSADOR MEETING | still | zoomed to the post's text and date | screenshot of the X post, under the DISINFORMATION POST tag | real | the account, 19 Oct; flagged by CNA Verify |
+  | details | 30–33s | ABOUT 400 POSTS, NEARLY 12 MILLION VIEWS | built | stat over the story background | stat: "12M" views | recreated | CNA Verify, 28 Oct |
 
-**3. Shot by shot, in order.** For each shot:
-- **Asset.** Gather or generate it (as in step 4: screenshot, downloaded image, real clip, or AI still or video), set its keep box, and show it with its headline and source label. For AI, show the still before animating it, then the clip. Wait for an OK or changes.
-- **Render.** When every shot of a beat has an approved asset, run `python3 scripts/build_reel.py manifest.json --stage preview --through <beat id> --workdir <dir>`. It builds the reel from the start up to that beat, with voice and captions, to `<dir>/preview/preview.mp4`, checking only those beats (later beats' assets need not exist yet), and prints the new beat's shot times. A beat is rendered as one piece because its narration sets its shots' timing. Show the user the new beat's shots: the preview clip, or a few frames from each new shot if the platform can't show video. Fix the build's warnings for these shots before showing them. Wait for an OK or changes, then go to the next shot.
+Gather or generate nothing before the plan is approved: screenshots and AI generations take time, and a changed line can make them useless. Revise and show the changed parts again until the user approves. A changed line goes back through the script checks (Workflow step 3) first.
 
-If a change touches the plan (a fact, a line, or a shot added or dropped), show the changed part of the plan for approval before carrying on. A changed line changes its beat's timing, so re-run the preview for that beat and show it again.
+**4. Manifest, narration and dry run.** Write the whole manifest from the approved plan, as in Workflow step 5 (shape in `examples/sample-manifest.json`): every beat with its narration, `material`, headline and `section`, and `background` set. Graphics the build draws from text (a stat, the diagram's nodes, the timeline) go in now. A shot whose asset isn't made yet carries its plan row instead of a visual, for example `"planned": {"kind": "video", "placement": "full-bleed", "visual": "AI video: a vault door swinging open"}` or `"planned": {"kind": "still", "placement": "zoomed to the post's text and date", "visual": "screenshot of the X post"}`. Then:
+- `python3 scripts/build_reel.py manifest.json --stage narrate --workdir <dir>` speaks the approved script and prints each beat's and each shot's measured time. Each asset must cover its shot's time (an AI video runs at least that long).
+- `python3 scripts/build_reel.py manifest.json --dry-run` checks the length, headlines and loop-back, prints the story spine, and runs the pace report on the planned kinds. Fix its warnings now, while every shot is still a plan row, and show the user any change to the approved plan.
 
-**4. Finish.** After the last shot, carry on from step 5 (dry run, then the full build) through the verification gate and delivery. The user's approvals don't replace the gate: it checks things a viewer can miss, such as caption sync, source wording and the loop-back. If the dry run's pace report or the gate needs an approved shot changed, show the user the change and why before making it.
+The dry run, `--stage narrate` and `--stage diagram-brief` accept planned shots. Every stage that renders a beat refuses one, so no shot is shown before its real asset is in.
+
+**5–6. Shot by shot, in order, hook first.** For each shot:
+- **Asset.** Gather or generate it as in Workflow step 4: read `references/asset-gathering.md` before the first one, and `references/ai-video.md` before the first Muse generation. Show the user the asset itself (the image or clip file; for AI, the still and then the clip) and say in words what its keep box holds, its headline and its source label. Wait for an OK or changes. Then put it in the manifest in place of `planned`, set as its approved placement says (`keep`, `full_bleed`, `move`, or a card's `image`).
+- **Render.** When every shot of a beat has an approved asset, render it with the build:
+  - the hook's beats: `python3 scripts/build_reel.py manifest.json --stage hook --workdir <dir>` builds `<dir>/hook/hook.mp4` and reports its length (7s limit), word count and caption sync. Fix the hook until the report passes (Workflow step 6).
+  - each later beat: `python3 scripts/build_reel.py manifest.json --stage preview --through <beat id> --workdir <dir>` builds the reel from the start through that beat, with voice and captions, to `<dir>/preview/preview.mp4`, and prints the new beat's shot times. Later beats may still be planned.
+
+  A beat is rendered as one piece because its narration sets its shots' timing. Fix the build's warnings for these shots, then show the user the new beat's shots: the rendered clip, or frames taken from it if the platform can't show video. Wait for an OK or changes, then go to the next shot.
+
+If a change touches the plan (a fact, a line, or a shot added or dropped), show the changed part of the plan for approval before carrying on, and update the manifest's planned shots to match. A changed line changes its beat's timing: run `--stage narrate` again, then render that beat again and show it.
+
+**7. Finish.** After the last beat, run the whole-reel build (Workflow step 6, second command; it reuses the approved narration and shots), then the verification gate and delivery (Workflow steps 7–8). The user's approvals don't replace the gate: it checks things a viewer can miss, such as caption sync, source wording and the loop-back. If the build's pace report or the gate needs an approved shot changed, show the user the change and why before making it.
 
 ## Verification gate (independent verifier agent)
 
