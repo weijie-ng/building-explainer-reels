@@ -109,6 +109,19 @@ def wrap(draw, text, fnt, max_w):
     return lines
 
 
+def fit_lines(d, text, path, size, min_size, max_w, max_h, gap=1.18):
+    """The largest font size (size down to min_size) at which text wraps
+    into max_w with its lines inside max_h. Returns (font, lines, line
+    height), or None: text is never clipped; it shrinks or the build stops."""
+    for sz in range(size, min_size - 1, -2):
+        f = font(path, sz)
+        lines = wrap(d, text, f, max_w)
+        if all(d.textlength(ln, font=f) <= max_w for ln in lines) and \
+                len(lines) * sz * gap <= max_h:
+            return f, lines, sz * gap
+    return None
+
+
 def headline_lines(text):
     """(size, lines) for a shot headline: one line at HEADLINE_SIZE if it
     fits, otherwise at the first of HEADLINE_SIZES_2 that fits two lines.

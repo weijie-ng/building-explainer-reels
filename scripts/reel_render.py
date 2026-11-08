@@ -701,19 +701,6 @@ def render_end_card(scene, warnings):
     return [(im, None, 0.0)]
 
 
-def fit_lines(d, text, path, size, min_size, max_w, max_h, gap=1.18):
-    """The largest font size (size down to min_size) at which text wraps
-    into max_w with its lines inside max_h. Returns (font, lines, line
-    height), or None: text is never clipped; it shrinks or the build stops."""
-    for sz in range(size, min_size - 1, -2):
-        f = font(path, sz)
-        lines = wrap(d, text, f, max_w)
-        if all(d.textlength(ln, font=f) <= max_w for ln in lines) and \
-                len(lines) * sz * gap <= max_h:
-            return f, lines, sz * gap
-    return None
-
-
 def captioned(sh):
     """Whether a shot carries captions: every shot but an end card without
     summary panels, where nothing competes with the pointer. With panels, the
