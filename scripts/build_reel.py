@@ -155,12 +155,14 @@ Scene types:
   "source": "TRM LABS"}, ...]}. A vertical line with one dot per event,
   revealed one at a time. About 3 events fit per shot; use "shots" for more.
 - end_card: "headline" (e.g. "CHECK BEFORE YOU SHARE"), "pointer":
-  {"outlet", "image", "captured"} (a screenshot of a referenced article
-  page: outlet name, headline, byline; "captured" is the capture date,
-  printed under it when the screenshot has no absolute date). {"outlet", "headline",
-  "no_screenshot": "<why>"} is the last-resort fallback; never a fake poster.
-  Also
-  "disclosure" (one line: AI voice, AI illustrations, sources).
+  {"outlet", "title", "url", "date", "photo"?, "keep"?}: a link preview of
+  the referenced article, drawn by the build (reel_pointer.py). "title" is
+  the article's headline word for word; "date" its publish date, or
+  "Accessed <date>" when the page gives none; "photo" the article's own
+  image (never false material), cropped centred on "keep". Without a photo
+  an outlet tile in the reel's colour is drawn. scripts/fetch_preview.py
+  <article url> prints the block. Also "disclosure" (one line: AI voice,
+  AI illustrations, sources).
 - summary (on the end card only): {"panels": [{"value", "label", "source"} |
   {"pair": [{"title", "text"}, {"title", "text"}]} |
   {"value", "bar": share 0-1, "label", "source"} |
@@ -170,8 +172,8 @@ Scene types:
   the pointer: two rows at most (figures and donuts two to a row; a
   distinction, bar or compare chart on its own row), so up to 4 figures.
   Charts fill in as their panel lands. Panels share one size and type size, appear one by one, and
-  never clip. An end card with panels keeps its captions; the pointer
-  screenshot should be a wide strip (outlet, headline, byline).
+  never clip. An end card with panels keeps its captions; the pointer is
+  drawn as the compact card (photo on the left).
 
 Rules enforced (the spec is SKILL.md; where this docstring disagrees, SKILL.md
 wins):

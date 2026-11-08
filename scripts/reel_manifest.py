@@ -60,6 +60,57 @@ def image_problem(path):
     return None
 
 
+RETIRED_POINTER_KEYS = ("image", "captured", "headline", "no_screenshot")
+POINTER_REQUIRED = ("outlet", "title", "url", "date")
+POINTER_PHOTO_MIN = 200      # px on the short side: smaller is a thumbnail, not the article's photo
+
+
+def pointer_problems(p):
+    """Why an end-card pointer can't be drawn, as messages (validate adds the
+    scene). The pointer is a link preview the build draws (SKILL.md, "End
+    card"): "outlet", "title" (the article's headline, word for word), "url"
+    and "date", and optionally "photo" (the article's own image) and "keep"."""
+    if not isinstance(p, dict):
+        return ["'pointer' must be an object with 'outlet', 'title', 'url' and 'date'."]
+    errors = []
+    for k in RETIRED_POINTER_KEYS:
+        if k in p:
+            errors.append(f"pointer '{k}' is retired: the pointer is now a link preview the "
+                          "build draws. Give \"outlet\", \"title\" (the article's headline, word "
+                          "for word), \"url\" and \"date\", and optionally \"photo\" (the "
+                          "article's own image) and \"keep\". scripts/fetch_preview.py "
+                          "<article url> prints the block.")
+    for k in POINTER_REQUIRED:
+        if not (isinstance(p.get(k), str) and p[k].strip()):
+            errors.append(f"pointer needs '{k}'.")
+    url = p.get("url")
+    if isinstance(url, str) and url.strip() and not re.match(r"^https?://[^/\s]+", url):
+        errors.append(f"pointer 'url' must be the article's full http(s) address, got {p['url']!r}.")
+    if "keep" in p:
+        k = p["keep"]
+        if not (isinstance(k, list) and len(k) == 4 and all(0 <= v <= 1 for v in k)
+                and k[0] < k[2] and k[1] < k[3]):
+            errors.append(f"pointer 'keep' must be [x0, y0, x1, y1] as fractions of the photo "
+                          f"with x0 < x1 and y0 < y1, got {k!r}.")
+    if p.get("photo"):
+        if not os.path.exists(p["photo"]):
+            errors.append(f"pointer photo not found: {p['photo']}")
+        else:
+            problem = image_problem(p["photo"])
+            if problem:
+                errors.append(f"pointer photo {p['photo']}: {problem}")
+            else:
+                from PIL import Image
+                with Image.open(p["photo"]) as im:
+                    short = min(im.size)
+                if short < POINTER_PHOTO_MIN:
+                    errors.append(f"pointer photo {p['photo']} is too small ({short}px on its short "
+                                  f"side, under {POINTER_PHOTO_MIN}px) to be the article's photo; "
+                                  "download the article's share image, or leave 'photo' out to "
+                                  "use the outlet tile.")
+    return errors
+
+
 MOVES = ("push", "pan", "inset")
 SAVE_PROMPT = re.compile(r"\b(save (this|it|for later)|screenshot|bookmark|share this|"
                          r"keep this|pin this)\b", re.I)
@@ -309,8 +360,7 @@ def validate(scenes, args, man=None):
         for key in ("image", "clip", "audio"):
             if s.get(key) and not os.path.exists(s[key]):
                 errors.append(f"scene {sid}: {key} file not found: {s[key]}")
-        p = s.get("pointer") if isinstance(s.get("pointer"), dict) else {}
-        for path in (s.get("image"), p.get("image"), (s.get("card") or {}).get("image")):
+        for path in (s.get("image"), (s.get("card") or {}).get("image")):
             if path and os.path.exists(path):
                 problem = image_problem(path)
                 if problem:
@@ -353,14 +403,8 @@ def validate(scenes, args, man=None):
                 errors.append(f"scene {sid}: diagram motion_clip not found: {mc}")
             elif not clip_info(mc):
                 errors.append(f"scene {sid}: diagram motion_clip has no readable video: {mc}")
-        p = s.get("pointer")
-        if p is not None and not (isinstance(p, dict) and p.get("outlet")
-                                  and (p.get("headline") or p.get("image"))):
-            errors.append(f"scene {sid}: pointer needs 'outlet' and either 'headline' or 'image'.")
-        elif isinstance(p, dict) and not p.get("image") and not p.get("no_screenshot"):
-            errors.append(f"scene {sid}: end-card pointer needs 'image', a screenshot of a referenced "
-                          "article page. A headline-only pointer needs 'no_screenshot' giving why "
-                          "no referenced article could be captured.")
+        if s.get("pointer") is not None:
+            errors += [f"scene {sid}: {e}" for e in pointer_problems(s["pointer"])]
         if "keep" in s:
             k = s["keep"]
             if not (isinstance(k, list) and len(k) == 4 and all(0 <= v <= 1 for v in k)
@@ -468,10 +512,21 @@ def validate(scenes, args, man=None):
                           "of at most 1s, e.g. {\"$6.3\": -0.2}.")
         if s.get("end_card") and i != len(scenes) - 1:
             warnings.append(f"scene {sid}: end card is not the last scene.")
-        if isinstance(s.get("pointer"), dict) and s["pointer"].get("image")                 and not os.path.exists(s["pointer"]["image"]):
-            errors.append(f"scene {sid}: pointer image not found: {s['pointer']['image']}")
         if s.get("end_card") and not s.get("disclosure"):
             warnings.append(f"scene {sid}: end card has no disclosure line.")
+    # The end card never shows false material (SKILL.md, "False or unverified
+    # material"): a pointer photo that is a disinformation shot's own file is
+    # refused. One saved under another name is left to the verifier (D10).
+    def same_file(path):
+        return os.path.normcase(os.path.realpath(path))
+    false_files = {same_file(s[k]) for _, _, _, s in units if s.get("disinformation")
+                   for k in ("image", "clip") if s.get(k)}
+    for i, j, scene, s in units:
+        photo = (s.get("pointer") or {}).get("photo") if isinstance(s.get("pointer"), dict) else None
+        if photo and same_file(photo) in false_files:
+            errors.append(f"scene {scene.get('id', f'#{i}')}: pointer photo {photo} is shown as "
+                          "disinformation in this reel; the end card never shows false material. "
+                          "Leave 'photo' out to use the outlet tile.")
     if man.get("loop_back", True) and len(scenes) > 1:
         problem = loop_back_problem(scenes)
         if problem:
@@ -540,7 +595,7 @@ def load_manifest(path):
         for key in ("image", "clip", "audio"):
             resolve(s, key)
         resolve(s.get("card"), "image")
-        resolve(s.get("pointer"), "image")
+        resolve(s.get("pointer"), "photo")
         resolve(s.get("diagram"), "motion_clip")
     return man
 

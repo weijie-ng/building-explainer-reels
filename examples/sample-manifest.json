@@ -267,8 +267,11 @@
         ]
       },
       "pointer": {
-        "outlet": "CNA VERIFY",
-        "image": "cna_verify_headline.png"
+        "outlet": "CNA",
+        "title": "<the CNA Verify article's headline, word for word>",
+        "url": "https://www.channelnewsasia.com/...",
+        "date": "29 Oct 2026",
+        "photo": "cna_verify_photo.jpg"
       }
     }
   ],
