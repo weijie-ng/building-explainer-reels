@@ -614,8 +614,21 @@ def render_timeline(scene, dur):
 # disclosure (tests/test_end_card_layout.py).
 END_POINTER_TOP_GAP = 28    # px between the closing line and the preview card
 POINTER_READ_GAP = 20       # px between the preview card and its "READ THE FULL STORY" line
-POINTER_READ_H = 40         # the "READ THE FULL STORY" line
+POINTER_READ_H = 40         # the "READ THE FULL STORY" line, at its usual one line
 DISCLOSURE_GAP = 22         # px above the disclosure line
+
+
+def read_line(d, outlet):
+    """(font, lines, line height, height) for "READ THE FULL STORY — <outlet>":
+    26px on one line when it fits, else shrunk to 18px and wrapped onto a
+    second line, never past the content edge."""
+    text = f"READ THE FULL STORY — {outlet}"
+    r = fit_lines(d, text, BOLD, 26, 18, 640, 2 * 26 * 1.18)
+    if not r:
+        raise RuntimeError(f"the end card's line {text!r} doesn't fit on two lines; use the "
+                           "outlet's usual short name in pointer 'outlet'.")
+    f, lines, lh = r
+    return f, lines, lh, max(POINTER_READ_H, round(lh * len(lines)) + 10)
 
 
 def pointer_height(scene, compact):
@@ -626,7 +639,7 @@ def pointer_height(scene, compact):
     p = scene.get("pointer")
     h = 0
     if p:
-        h += preview_card(p, compact).height + POINTER_READ_GAP + POINTER_READ_H
+        h += preview_card(p, compact).height + POINTER_READ_GAP + read_line(d, p["outlet"])[3]
     if scene.get("disclosure"):
         h += DISCLOSURE_GAP + 24 * len(wrap(d, scene["disclosure"], font(REG, 17), 640))
     return h
@@ -646,8 +659,10 @@ def draw_pointer(im, d, scene, y, compact):
         else:
             im.paste(card, (x0, y), card)
         y += card.height + POINTER_READ_GAP
-        d.text((40, y), f"READ THE FULL STORY — {p['outlet']}", font=font(BOLD, 26), fill=YELLOW)
-        y += POINTER_READ_H
+        f, lines, lh, read_h = read_line(d, p["outlet"])
+        for k, ln in enumerate(lines):
+            d.text((40, y + k * lh), ln, font=f, fill=YELLOW)
+        y += read_h
     if scene.get("disclosure"):
         # Small and muted, directly under the pointer.
         f = font(REG, 17)

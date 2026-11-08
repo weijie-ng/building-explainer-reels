@@ -266,6 +266,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from reel_common import *  # noqa: E402,F401,F403
+
+# Modules that draw shots: a change to any of them (a skill update) re-renders
+# every cached shot.
+RENDERER_MODULES = ("reel_render.py", "reel_background.py", "reel_pointer.py", "reel_common.py")
 from reel_subs import (WHISPER_MODEL, whisper_words, match_words, apply_nudges, phrase_times,  # noqa: E402
                        caption_events, write_ass, speech_segments, snap_to_speech,
                        SNAP_PAUSE, SNAP_DB, SNAP_HIGHPASS)
@@ -576,7 +580,7 @@ class Build:
                                 [file_sig(a) for a in assets if a], FONT_DIR, prev_key,
                                 # a renderer change (a skill update) re-renders every shot
                                 [file_sig(os.path.join(os.path.dirname(os.path.abspath(__file__)), m))
-                                 for m in ("reel_render.py", "reel_background.py")]]))
+                                 for m in RENDERER_MODULES]]))
         for n, (i, j, sh, dur, name) in enumerate(plan):
             if only is not None and i not in only:
                 continue

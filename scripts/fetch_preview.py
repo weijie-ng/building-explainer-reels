@@ -175,6 +175,10 @@ def pointer_block(found, url, today, photo_path):
              "url": url, "date": date}
     if photo_path:
         block["photo"] = photo_path
+        notes.append(f"look at {photo_path} before using it: it must be the article's own photo, "
+                     "not the false material the reel debunks (a fact-check's share image is "
+                     "often the fake post itself) and not the outlet's logo. If it is either, "
+                     "delete 'photo' so the card draws the outlet tile.")
     else:
         notes.append("no photo: the card draws the outlet tile. Add 'photo' only with the "
                      "article's own image, never the false material the reel debunks.")

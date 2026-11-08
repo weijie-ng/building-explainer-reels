@@ -50,9 +50,12 @@ def cover_at(img, tw, th, keep=None):
         cx, cy = (keep[0] + keep[2]) / 2 * sw, (keep[1] + keep[3]) / 2 * sh
     else:
         cx, cy = sw / 2, sh / 2
-    x0 = min(max(cx - tw / 2, 0), sw - tw)
-    y0 = min(max(cy - th / 2, 0), sh - th)
-    return img.resize((tw, th), Image.LANCZOS, box=(x0 / s, y0 / s, (x0 + tw) / s, (y0 + th) / s))
+    # Clamp both ends: when a scaled side equals the target, float rounding
+    # can make sw - tw a hair below zero, and Pillow refuses a negative box.
+    x0 = max(0.0, min(cx - tw / 2, sw - tw))
+    y0 = max(0.0, min(cy - th / 2, sh - th))
+    box = (x0 / s, y0 / s, min(iw, (x0 + tw) / s), min(ih, (y0 + th) / s))
+    return img.resize((tw, th), Image.LANCZOS, box=box)
 
 
 def _photo(p):
