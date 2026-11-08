@@ -2,6 +2,7 @@
 
 from reel_common import *  # noqa: F401,F403
 from reel_background import background as story_background
+from reel_pointer import CARD_W, preview_card
 
 
 def canvas(scene):
@@ -608,77 +609,49 @@ def render_timeline(scene, dur):
     return [(frame(k), layer, (k - 1) * step) for k in range(1, len(events) + 1)]
 
 
-def pointer_image(p, max_h):
-    """The pointer screenshot scaled to fit 640 x max_h (never upscaled);
-    transparent areas go white, not black."""
-    from PIL import Image
-    raw = Image.open(p["image"]).convert("RGBA")
-    img = Image.new("RGB", raw.size, WHITE)
-    img.paste(raw, (0, 0), raw)
-    img.thumbnail((640, max_h), Image.LANCZOS)
-    return img
+# The end card's vertical rhythm, tight enough that the full card's tallest
+# top block (16:9) fits under a two-line closing line with a two-line
+# disclosure (tests/test_end_card_layout.py).
+END_POINTER_TOP_GAP = 28    # px between the closing line and the preview card
+POINTER_READ_GAP = 20       # px between the preview card and its "READ THE FULL STORY" line
+POINTER_READ_H = 40         # the "READ THE FULL STORY" line
+DISCLOSURE_GAP = 22         # px above the disclosure line
 
 
-def pointer_height(scene, max_h):
-    """Height draw_pointer will take, from the top of the screenshot (or
-    fallback panel) to the bottom of the disclosure line."""
+def pointer_height(scene, compact):
+    """Height draw_pointer will take, from the top of the preview card to the
+    bottom of the disclosure line."""
     from PIL import Image, ImageDraw
     d = ImageDraw.Draw(Image.new("RGB", (W, H)))
-    p = scene.get("pointer") or {}
+    p = scene.get("pointer")
     h = 0
-    if p.get("image"):
-        h += pointer_image(p, max_h).height + 12 + (26 if p.get("captured") else 0) + 16 + 40
-    elif p:
-        h += 60 + len(wrap(d, p["headline"], font(BOLD, 38), 600)) * 46 + 50 + 24 + 40
+    if p:
+        h += preview_card(p, compact).height + POINTER_READ_GAP + POINTER_READ_H
     if scene.get("disclosure"):
-        h += 30 + 24 * len(wrap(d, scene["disclosure"], font(REG, 17), 640))
+        h += DISCLOSURE_GAP + 24 * len(wrap(d, scene["disclosure"], font(REG, 17), 640))
     return h
 
 
-def draw_pointer(im, d, scene, y, max_h, warnings, wide=False):
-    """The pointer to the full story (a screenshot of the article page, or
-    the last-resort headline panel), its "READ THE FULL STORY" line and the
-    disclosure line under it, from y down. Returns the y below them.
-    wide: the space is a short strip (the end card with summary panels), so
-    a screenshot that isn't a wide strip comes out too small to read."""
+def draw_pointer(im, d, scene, y, compact):
+    """The pointer to the full story (a link preview the build draws; see
+    reel_pointer.py), its "READ THE FULL STORY" line and the disclosure line
+    under it, from y down. Returns the y below them. compact: the form for
+    the end card with summary panels (photo on the left)."""
     p = scene.get("pointer")
-    if p and p.get("image"):
-        # A screenshot of the article itself (headline and byline), shown
-        # whole with a thin white frame.
-        shot_img = pointer_image(p, max_h)
-        if shot_img.width < 480 and (wide or shot_img.height < max_h):
-            warnings.append(f"scene {scene.get('id')}: end-card screenshot is only "
-                            f"{shot_img.width}x{shot_img.height}px on screen; recapture it larger "
-                            "and wider (outlet, headline and byline as a strip about 1000px wide) "
-                            "so its text is readable.")
-        x0 = (W - shot_img.width) // 2
-        d.rectangle([x0 - 4, y - 4, x0 + shot_img.width + 3, y + shot_img.height + 3], fill=WHITE)
-        im.paste(shot_img, (x0, y))
-        y += shot_img.height + 12
-        if p.get("captured"):
-            # Stands in for a relative time ("13 hours ago") cropped out at capture.
-            d.text((x0, y), f"CAPTURED {p['captured']}", font=font(REG, 18), fill=SOURCE_TEXT)
-            y += 26
-        y += 16
+    if p:
+        card = preview_card(p, compact)
+        x0 = (W - CARD_W) // 2
+        if im.mode == "RGBA":
+            im.alpha_composite(card, dest=(x0, y))
+        else:
+            im.paste(card, (x0, y), card)
+        y += card.height + POINTER_READ_GAP
         d.text((40, y), f"READ THE FULL STORY — {p['outlet']}", font=font(BOLD, 26), fill=YELLOW)
-        y += 40
-    elif p:
-        f_out, f_head = font(MONO_BOLD, 22), font(BOLD, 38)
-        lines = wrap(d, p["headline"], f_head, 600)
-        h = 60 + len(lines) * 46 + 50
-        d.rectangle([40, y, 680, y + h], fill=PANEL)
-        d.text((64, y + 20), p["outlet"], font=f_out, fill=(170, 185, 210))
-        yy = y + 56
-        for line in lines:
-            d.text((64, yy), line, font=f_head, fill=WHITE)
-            yy += 46
-        y += h + 24
-        d.text((40, y), f"READ THE FULL STORY — {p['outlet']}", font=font(BOLD, 26), fill=YELLOW)
-        y += 40
+        y += POINTER_READ_H
     if scene.get("disclosure"):
         # Small and muted, directly under the pointer.
         f = font(REG, 17)
-        yy = y + 30
+        yy = y + DISCLOSURE_GAP
         for line in wrap(d, scene["disclosure"], f, 640):
             d.text((40, yy), line, font=f, fill=SOURCE_TEXT)
             yy += 24
@@ -694,10 +667,12 @@ def render_end_card(scene, warnings):
     d = ImageDraw.Draw(im)
     y = draw_headline(d, SAFE_TOP, scene.get("headline", "CHECK BEFORE YOU SHARE"),
                       scene.get("yellow_words"), size=HEADLINE_SIZE)
-    y = draw_pointer(im, d, scene, y + 40, 420, warnings)
+    y = draw_pointer(im, d, scene, y + END_POINTER_TOP_GAP, compact=False)
     if y > KEEP_BOTTOM:
-        warnings.append(f"scene {scene.get('id')}: end card runs to y={y}, into the bottom "
-                        f"safe area (below {KEEP_BOTTOM}); shorten the disclosure or the closing line.")
+        raise RuntimeError(f"beat {scene.get('id')}: the end card runs to y={y}, into the bottom "
+                           f"safe area (below {KEEP_BOTTOM}). Shorten the closing line or the "
+                           "disclosure line; the pointer's title is the article's headline and "
+                           "is never shortened.")
     return [(im, None, 0.0)]
 
 
@@ -752,14 +727,13 @@ def is_chart(p):
 
 
 END_SUMMARY_ROWS = 2         # rows of panels that fit on the end card above the pointer
-END_POINTER_MIN = 150        # px: the pointer screenshot's least height on that card
-END_POINTER_MAX = 260
 
 
 def end_summary_layout(scene, top):
-    """Row height and pointer height for the end card with summary panels:
-    the panels take up to 150px a row, the pointer what is left (150-260px).
-    Raises when they don't fit above the bottom safe area."""
+    """Row height for the end card with summary panels. The pointer's
+    compact card takes the height its title needs (150px or more); the panel
+    rows give way, from 150px down to 120px. Raises when they still don't
+    fit above the bottom safe area."""
     sid = scene.get("id")
     rows = card_rows(scene)
     if len(rows) > END_SUMMARY_ROWS:
@@ -767,15 +741,14 @@ def end_summary_layout(scene, top):
                            f"{END_SUMMARY_ROWS} fit above the pointer (up to 4 figures, or 2 "
                            "figures and one distinction). Cut panels.")
     gap = 12
+    ptr_h = pointer_height(scene, compact=True)
     for row_h in range(150, 119, -2):
         panels_h = len(rows) * row_h + gap * (len(rows) - 1) + 24
-        for ph in range(END_POINTER_MAX, END_POINTER_MIN - 1, -10):
-            if top + panels_h + pointer_height(scene, ph) <= KEEP_BOTTOM:
-                return row_h, ph
+        if top + panels_h + ptr_h <= KEEP_BOTTOM:
+            return row_h
     raise RuntimeError(f"beat {sid}: the summary panels, pointer and disclosure line don't fit "
-                       f"on the end card above y={KEEP_BOTTOM}. Cut a row of panels, shorten "
-                       "the disclosure line or the closing line, or capture the pointer as a "
-                       "wider strip.")
+                       f"on the end card above y={KEEP_BOTTOM}. Cut a row of panels, or shorten "
+                       "the disclosure line or the closing line.")
 
 
 def render_summary(scene, dur, warnings):
@@ -801,9 +774,9 @@ def render_summary(scene, dur, warnings):
     rows = card_rows(scene)
     top = max(y + 24, content_top(scene))
     gap, margin, pad = 12, 40, 14
-    row_h, ptr_h = end_summary_layout(scene, top)
+    row_h = end_summary_layout(scene, top)
     panels_bottom = top + len(rows) * row_h + gap * (len(rows) - 1)
-    draw_pointer(base, d, scene, panels_bottom + 24, ptr_h, warnings, wide=True)
+    draw_pointer(base, d, scene, panels_bottom + 24, compact=True)
     boxes = []
     for r, row in enumerate(rows):
         ry = top + r * (row_h + gap)

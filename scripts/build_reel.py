@@ -567,7 +567,7 @@ class Build:
             assets = [sh.get("image"), sh.get("clip"), (sh.get("card") or {}).get("image"),
                       (sh.get("diagram") or {}).get("motion_clip"),
                       (sh.get("stat") or {}).get("motion_clip"),
-                      (sh.get("pointer") or {}).get("image") if isinstance(sh.get("pointer"), dict) else None]
+                      (sh.get("pointer") or {}).get("photo") if isinstance(sh.get("pointer"), dict) else None]
             # A wipe shows the previous shot's last frame, so it re-renders when that shot changes.
             prev_key = keys[n - 1] if sh.get("wipe") and n else None
             keys.append(digest([{k: v for k, v in sh.items() if k not in ("_mode",)}, round(dur, 4),
