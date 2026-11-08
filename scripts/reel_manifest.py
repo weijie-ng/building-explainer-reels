@@ -266,6 +266,14 @@ def clip_info(path):
         return None
 
 
+def made_by_composite(path):
+    """True when make_composite.py wrote the clip: someone's post shown whole,
+    or several accounts' clips side by side (it tags its output)."""
+    r = run(["ffprobe", "-v", "error", "-show_entries", "format_tags=comment",
+             "-of", "default=nw=1:nk=1", path], check=False)
+    return r.stdout.strip() == "make_composite"
+
+
 def summary_text(sm):
     parts = [sm.get("title", ""), sm.get("sources", "")]
     for p in sm.get("panels", []):
@@ -491,6 +499,19 @@ def validate(scenes, args, man=None):
                 errors.append(f"scene {sid}: clip has no readable video stream: {s['clip']}")
             else:
                 cdur, cw, ch = info
+                if s.get("material") == "real":
+                    post = made_by_composite(s["clip"])
+                    if i in hook and post:
+                        errors.append(f"scene {sid}: the hook fills the frame, and a post or "
+                                      "composite from make_composite.py sits on blurred fill. "
+                                      "Show it after the hook; open on footage or an AI video.")
+                    elif i not in hook and not post:
+                        warnings.append(f"scene {sid}: this real clip fills the frame. If it is "
+                                        "someone's post (a reel, TikTok, Short, or a video the "
+                                        "narration attributes to an account), show it whole as "
+                                        "the post: scripts/make_composite.py with one tile "
+                                        "(SKILL.md, \"Real clips\"). Footage that only pictures "
+                                        "a place or event may fill the frame.")
                 if s.get("material") == "ai" and abs(cw / ch - W / H) > 0.05 and not s.get("keep"):
                     warnings.append(f"scene {sid}: AI clip is {cw}x{ch}, not 9:16; the build "
                                     "crops it to the middle. Generate it at 720x1280, or set "

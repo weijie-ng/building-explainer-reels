@@ -1,6 +1,6 @@
-# Diagrams and real-clip composites
+# Diagrams, posts and real-clip composites
 
-Details for two kinds of shot. The rules for what each is for stay in SKILL.md ("Diagram", "Real clips").
+Details for three kinds of shot. The rules for what each is for stay in SKILL.md ("Diagram", "Real clips").
 
 ## Diagram
 
@@ -17,6 +17,23 @@ The build plays the clip as the base layer, tinted toward the background blue, a
 1. Run `python3 scripts/check_ai_animation.py diagram.png clip.mp4 --strip strip.png`. It compares every frame with the source where the source has text and lines, reports how long the clip stays faithful (`usable_end`) and when new marks appear (a cross being drawn), and PASSes only if at least 1s is usable.
 2. On a PASS, use the clip as the shot's `clip` with `"material": "diagram"`, `"clip_end": <usable_end>`, and `clip_start` chosen so the event you need (the cross) lands on the narrated word; the shot holds the last faithful frame after `clip_end`. Look at the strip: an event must be what the narration says, at the place it says.
 3. On a FAIL, don't use it. Animate those moves in the build instead (the reveal and the ✗ on the narrated word), with an AI motion clip behind the diagram for movement.
+
+## Someone's post
+
+A clip an account posted (a reel, TikTok, Short or other video the narration attributes to them) is the receipt of what they posted, so it is shown as their post: whole, in its own shape, with their account above it. Filling the frame with it goes wrong three ways:
+- the post's own graphics (a logo, a title box, an on-screen button, a cut-out) sit under the reel's source label, headline and caption;
+- blurring that text leaves smeared bands;
+- the viewer can't tell it from the reel's own footage.
+
+Examples: a minister's TikTok making the claim the reel checks, a viral Short of a deepfake ad, an influencer's reel repeating a rumour, a fact-checker's video quoted as a reaction.
+
+Build it with `python3 scripts/make_composite.py spec.json --out post.mp4 --preview` and one tile in `tiles` (`clip`, `account`, `post_url`, `posted`; optional `avatar`, `start`, `mask`). The source label defaults to "<account> • <posted>". Pass the output as `"clip"` with `"material": "real"`.
+- **Where it sits.** The account strip starts below the caption band (y=408), with the clip right under it (y=448), as wide as the frame allows. A tall clip runs past y=1030 to the frame's bottom edge: a 9:16 reel is shown whole at 468×832, about 42% of the frame; kept inside the content band it would be 327×582, about 21%. A wider post (square, 16:9) is centred in the content band when it fits there.
+- **What's under the platform's UI.** For a tall post the script prints how much of the clip sits below y=1030 (the bottom ~30% of a 9:16 reel), and `--preview` shades it. The platform's caption, name and buttons cover that part, so nothing the line depends on may be there. If the key moment or the claim's own text sits low in the clip, pick another slice, or show a screenshot of the post instead.
+- **Its text.** Its logos, title boxes and on-screen graphics stay: inside the post they are part of the receipt and collide with nothing. Mask its running captions (`mask`, fractions of the clip) where they would be read as part of the reel, including below y=1030, where they would stack under the platform's own caption.
+- **Behind it** is the reel's blue over a blurred copy of the clip, as behind any image shown whole.
+- **Not in the hook.** The hook fills the frame, so the build rejects a post there. Open on footage or an AI video, and show the post after it.
+- **Logged** like a composite tile: the account as posted, the post URL and date go in the asset log (the script prints the row).
 
 ## Side-by-side composite of real clips
 

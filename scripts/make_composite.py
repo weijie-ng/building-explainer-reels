@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
 """
-Tile 2-4 real clips from different accounts into one 9:16 composite shot,
-to show the same content posted again and again (references/graphics-and-clips.md,
-"Side-by-side composite of real clips").
+Show real clips as the posts they are, in one 9:16 shot
+(references/graphics-and-clips.md, "Someone's post" and "Side-by-side
+composite of real clips"):
 
-The tiles sit in the content band: below the header (source label and
-headline) and the caption band, and above the platform's bottom UI
-(KEEP_BOTTOM), so none of the reel's own text lands on a tile or an
-account name. Behind them is the reel's blue over a blurred copy of the
+- one tile: someone's post (a reel, TikTok, Short or other posted video),
+  shown whole as a framed post with the account above it (the "post"
+  layout). It sits below the caption band and may run past the platform's
+  bottom UI (KEEP_BOTTOM) to the frame's bottom edge, so a 9:16 reel is
+  shown whole at 468x832 instead of 327x582. The script prints how much of
+  the clip lies under the platform's UI: nothing the line depends on may
+  be there.
+- 2-4 tiles: the same content posted by several accounts, tiled side by
+  side inside the content band.
+
+Either way none of the reel's own text lands on a tile or an account
+name. Behind the tiles is the reel's blue over a blurred copy of the
 first clip, like the blurred fill behind any image. Each tile is the
 account's own clip, only cropped, scaled, trimmed and synced; the source
 clips' burned-in captions can be masked per tile. Above each tile is the
 account's avatar (when given) and name, copied exactly from the post.
-Tiles can arrive one after another (--stagger) to show the spread.
+Several tiles can arrive one after another (--stagger) to show the spread.
 
 Usage:
   python3 make_composite.py spec.json [--out composite.mp4] [--preview]
@@ -20,8 +28,10 @@ Usage:
 spec.json:
   {
     "duration": 3.0,                  // the shot's length (s); shots stay <= 6s
-    "label": "TRACED EXAMPLES • 28 OCT 2026",   // the one source label for the set
-    "layout": "auto",                 // "grid" (2 columns), "row" (1 x N) or "auto"
+    "label": "TRACED EXAMPLES • 28 OCT 2026",   // the one source label for the set;
+                                      //   one tile defaults to "<account> • <posted>"
+    "layout": "auto",                 // "post" (one tile), "grid" (2 columns),
+                                      //   "row" (1 x N) or "auto"
     "stagger": 0.3,                   // s between tiles appearing; 0 = all at once
     "caption_top": 300,               // the beat's caption position, if moved
     "tiles": [
@@ -62,6 +72,7 @@ NAME_SIZE = 22      # account name size; shrinks to NAME_MIN to fit, never trunc
 NAME_MIN = 14
 FADE = 0.2          # each tile fades in over this long
 MAX_SHOT = 6.0      # SKILL.md: shots are never over 6s
+MADE_BY = "make_composite"   # written to the output's comment tag
 
 
 def fail(msg):
@@ -73,8 +84,12 @@ def load_spec(path):
         spec = json.load(f)
     base = os.path.dirname(os.path.abspath(path))
     tiles = spec.get("tiles") or []
-    if not 2 <= len(tiles) <= 4:
-        fail(f"needs 2-4 tiles, got {len(tiles)}.")
+    if not 1 <= len(tiles) <= 4:
+        fail(f"needs 1 tile (someone's post) or 2-4 (the same content from several "
+             f"accounts), got {len(tiles)}.")
+    if len(tiles) == 1 and not spec.get("label") and tiles[0].get("account") \
+            and tiles[0].get("posted"):
+        spec["label"] = f"{tiles[0]['account']} • {tiles[0]['posted']}"
     if not spec.get("label"):
         fail("needs 'label': one source label describing the set, e.g. "
              "\"TRACED EXAMPLES • 28 OCT 2026\" (references/graphics-and-clips.md).")
@@ -114,6 +129,9 @@ def band(spec):
 
 def layout(spec, sizes):
     """Cells (x, y, w, h) for each tile's video, below its account strip.
+    Post (one tile): the clip whole, in its own shape, as large as the frame
+    allows below the caption band; a tall clip runs past the platform's UI
+    to the bottom edge, a wider one is centred in the content band.
     Grid: 2 columns, tiles as large as the band allows (a portrait clip is
     cropped around its focus). Row: 1 x N, each tile keeping its clip's own
     shape, so a portrait clip is shown whole but small."""
@@ -123,9 +141,21 @@ def layout(spec, sizes):
     mode = spec.get("layout", "auto")
     if mode == "auto":
         portrait = all(h > w for w, h in sizes)
-        mode = "row" if portrait and n <= 3 else "grid"
+        mode = "post" if n == 1 else "row" if portrait and n <= 3 else "grid"
+    if n == 1 and mode != "post":
+        fail("one tile takes the 'post' layout (or 'auto').")
+    if n > 1 and mode == "post":
+        fail(f"the 'post' layout is for one tile; {n} tiles take 'grid', 'row' or 'auto'.")
     usable_w = W - 2 * EDGE
-    if mode == "row":
+    if mode == "post":
+        sw, sh = sizes[0]
+        y = top + CHIP_H
+        th = min(H - y, int(usable_w * sh / sw))
+        tw = int(th * sw / sh)
+        if y + th < bottom:
+            y += (bottom - y - th) // 2
+        cells = [((W - tw) // 2, y, tw, th)]
+    elif mode == "row":
         tw = (usable_w - (n - 1) * GAP) // n
         aspect = sum(h / w for w, h in sizes) / n
         th = min(int(tw * aspect), band_h - CHIP_H)
@@ -143,7 +173,7 @@ def layout(spec, sizes):
             x0 = (W - (in_row * tw + (in_row - 1) * GAP)) // 2
             cells.append((x0 + c * (tw + GAP), top + r * (th + CHIP_H + GAP) + CHIP_H, tw, th))
     else:
-        fail(f"layout must be 'grid', 'row' or 'auto', not {mode!r}.")
+        fail(f"layout must be 'post', 'grid', 'row' or 'auto', not {mode!r}.")
     for w_, h_ in [(c[2], c[3]) for c in cells]:
         if w_ < 120 or h_ < 120:
             fail(f"tiles would be {w_}x{h_}px, too small to read; use fewer tiles or 'grid'.")
@@ -248,7 +278,10 @@ def build(spec, out, preview):
     g.append(f"{last}format=yuv420p[out]")
     cmd += ["-filter_complex", ";".join(g), "-map", "[out]", "-an",
             "-frames:v", str(frames_for(dur)), "-r", str(FPS),
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", out]
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18",
+            # The build reads this tag to tell a post or composite from a
+            # clip that fills the frame (reel_manifest.py).
+            "-metadata", f"comment={MADE_BY}", out]
     run(cmd)
 
     if preview:
@@ -275,7 +308,8 @@ def write_preview(spec, out, dur):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Tile 2-4 real clips into one composite shot.")
+    ap = argparse.ArgumentParser(description="Show someone's post (one tile), or tile 2-4 "
+                                 "accounts' clips, as one 9:16 shot.")
     ap.add_argument("spec")
     ap.add_argument("--out", default=None, help="output mp4 (default: composite.mp4 next to the spec)")
     ap.add_argument("--preview", action="store_true", help="also write <out>_preview.png")
@@ -285,9 +319,16 @@ def main():
     spec, base = load_spec(a.spec)
     out = a.out or os.path.join(base, "composite.mp4")
     mode, cells, warnings = build(spec, out, a.preview)
-    print(f"wrote {out}  ({len(spec['tiles'])} tiles, {mode} layout, {spec['duration']}s, muted)")
+    print(f"wrote {out}  ({len(spec['tiles'])} tile(s), {mode} layout, {spec['duration']}s, muted)")
     for w in warnings:
         print(f"WARNING: {w}")
+    x, y, w, h = cells[0]
+    if mode == "post" and y + h > KEEP_BOTTOM:
+        cut = (KEEP_BOTTOM - y) / h
+        print(f"\nThe post is {w}x{h} at y={y}. Its bottom {1 - cut:.0%} (below {cut:.2f} of "
+              "the clip's height) sits under the platform's caption, name and buttons. Look at "
+              "that part of the clip: nothing the line depends on may be there, and burned-in "
+              "captions there still need a 'mask'.")
     entry = {"clip": os.path.basename(out), "material": "real", "image_source": spec["label"]}
     print("\nManifest entry (add the shot's headline, and keep the label as given):")
     print("  " + json.dumps(entry, ensure_ascii=False))
@@ -297,7 +338,7 @@ def main():
     for i, t in enumerate(spec["tiles"], 1):
         print(f"| {i} | {t['account']} | {t['post_url']} | {t['posted']} | "
               f"{os.path.basename(t['clip'])} |")
-    print("\nLook at the composite before it goes in the manifest: every tile is the account's "
+    print("\nLook at the shot before it goes in the manifest: every tile is the account's "
           "own clip, the names match the posts, and no burned-in caption collides with the "
           "reel's headline or captions.")
 

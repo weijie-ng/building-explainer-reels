@@ -89,9 +89,11 @@ Manifest (see examples/sample-manifest.json):
                                    // inset (required on hook stills)
     "clip_end": 2.4,               // optional: stop the clip here and hold
                                    // (an AI animation's usable_end)
-    "clip": "lutfi.mp4", "clip_start": 0.0,   // real footage or a Muse AI
-                                   // video; "keep" picks the crop when it
-                                   // isn't 9:16; its audio is dropped
+    "clip": "lutfi_post.mp4", "clip_start": 0.0,   // real footage, someone's
+                                   // post or a composite from
+                                   // make_composite.py, or a Muse AI video;
+                                   // "keep" picks the crop when it isn't
+                                   // 9:16; its audio is dropped
     "clip_mask": [[4, 100, 556, 280]],  // delogo boxes [x, y, w, h] in
                                    // 720x1280 output pixels; x must be > 0
     "wipe": "left",                // optional: open this shot with a graphic

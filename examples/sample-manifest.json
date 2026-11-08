@@ -44,23 +44,9 @@
       "yellow_words": [
         "CLAIMS"
       ],
-      "clip": "lutfi_clip.mp4",
+      "clip": "lutfi_post.mp4",
       "clip_start": 0.0,
-      "clip_mask": [
-        [
-          4,
-          100,
-          556,
-          280
-        ],
-        [
-          80,
-          920,
-          560,
-          120
-        ]
-      ],
-      "image_source": "REAL CLIP • @m.lutfi, 19 OCT"
+      "image_source": "@m.lutfi • 19 OCT 2026"
     },
     {
       "id": "diagram",
