@@ -59,7 +59,8 @@ def summary_hold(reel, start, end):
     jumps = (abs(region[1:] - region[:-1]) > PIXEL_DIFF).mean(axis=(1, 2)) > CHANGED_SHARE
     hits = jumps.nonzero()[0]
     landed = hits[-1] + 1 if len(hits) else 0     # first frame of the finished card
-    return (len(region) - landed) / FPS
+    # A plain float, so the PASS flags derived from it can be written to JSON.
+    return float(len(region) - landed) / FPS
 
 
 def main():
