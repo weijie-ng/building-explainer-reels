@@ -703,7 +703,12 @@ class Build:
         re-rendered shot always gets them; no -shortest anywhere."""
         folder = os.path.dirname(os.path.abspath(ass))
         video = os.path.join(folder, "video_only.mp4")
-        run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
+        # -reinit_filter 0: shots differ in colour tags (a clip shot keeps its
+        # source's bt709; a drawn shot has none), and newer ffmpeg (8.1, 9.0;
+        # not 6.1) rebuilds the filter graph at such a change, where fps drops
+        # one frame. Every shot is already 720x1280 at 30 fps, so a rebuild is
+        # never needed.
+        run(["ffmpeg", "-y", "-v", "error", "-reinit_filter", "0", "-f", "concat", "-safe", "0",
              "-i", reel_audio.concat_list(videos, os.path.join(folder, "videos.txt")),
              "-vf", f"fps={FPS},format=yuv420p", "-c:v", "libx264", video])
         verify_video(video, frames, "joined video")
