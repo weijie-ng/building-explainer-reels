@@ -38,16 +38,43 @@ def source_label(scene):
     return scene.get("image_source", "")
 
 
-def draw_tag(d, y, text, color):
-    """Rounded tag pill; wraps to two lines rather than run off the edge."""
-    f = font(BOLD, 30)
-    lines = wrap(d, text, f, W - 120)
-    lh = 40
-    tw = max(d.textlength(l, font=f) for l in lines) + 36
-    d.rounded_rectangle([40, y, 40 + tw, y + lh * len(lines) + 14], radius=10, fill=color)
-    for i, l in enumerate(lines):
-        d.text((58, y + 8 + i * lh), l, font=f, fill=WHITE)
-    return y + lh * len(lines) + 14 + 14
+TAG_SIZE, TAG_NOTE_SIZE = 26, 20    # the tag pill's text, and its note beside it
+TAG_H, TAG_PAD = 44, 18              # pill height (one line) and side padding
+
+
+def draw_tag(ov, y, text, color, note=None):
+    """The tag: a rounded pill with text in white, and its note ("flagged
+    by CNA Verify") in white beside the pill, or on the line under it when
+    it doesn't fit beside it, so neither is broken mid-phrase. The pill
+    wraps only when its own text is wider than the headline column. Drawn
+    on the RGBA layer ov; returns the y below the tag."""
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(ov)
+    f = font(BOLD, TAG_SIZE)
+    lines = wrap(d, text, f, HEADLINE_WRAP - 2 * TAG_PAD)
+    lh = TAG_SIZE + 10
+    tw = round(max(d.textlength(ln, font=f) for ln in lines)) + 2 * TAG_PAD
+    th = TAG_H + lh * (len(lines) - 1)
+    s = 4                                # drawn larger and scaled down: smooth ends
+    pill = Image.new("L", (tw * s, th * s), 0)
+    ImageDraw.Draw(pill).rounded_rectangle([0, 0, tw * s - 1, th * s - 1],
+                                           radius=TAG_H // 2 * s, fill=255)
+    ov.paste(color + (255,), (40, y, 40 + tw, y + th),
+             pill.resize((tw, th), Image.LANCZOS))
+    for i, ln in enumerate(lines):
+        d.text((40 + TAG_PAD, y + TAG_H / 2 + i * lh), ln, font=f, fill=WHITE, anchor="lm")
+    y_end = y + th
+    if note:
+        fn = font(BOLD, TAG_NOTE_SIZE)
+        kw = dict(font=fn, fill=WHITE, stroke_width=2, stroke_fill=(0, 0, 0, 160))
+        nx = 40 + tw + 14
+        if nx + d.textlength(note, font=fn) <= 40 + HEADLINE_WRAP and len(lines) == 1:
+            d.text((nx, y + TAG_H / 2), note, anchor="lm", **kw)
+        else:
+            for ln in wrap(d, note, fn, HEADLINE_WRAP):
+                d.text((40, y_end + 6), ln, **kw)
+                y_end += 6 + TAG_NOTE_SIZE + 4
+    return y_end + 14
 
 
 def draw_headline(d, y, text, yellow_words=None, size=None):
@@ -89,13 +116,13 @@ def text_layer(scene, with_source=True):
     d = ImageDraw.Draw(ov)
     y = SAFE_TOP
     if scene.get("disinformation"):
-        y = draw_tag(d, y, f"DISINFORMATION POST — flagged by {scene['disinformation']}", RED)
+        y = draw_tag(ov, y, "DISINFORMATION POST", RED, note=f"flagged by {scene['disinformation']}")
     src = source_label(scene) if with_source else ""
     if src:
         f = font(MONO_BOLD, 18)
         for line in wrap(d, src, f, HEADLINE_WRAP):
             d.text((40, y), line, font=f, fill=SOURCE_TEXT,
-                   stroke_width=2, stroke_fill=(0, 0, 0, 160))
+                   stroke_width=2, stroke_fill=(0, 0, 0, 220))
             y += 26
         y += 8
     if scene.get("headline"):
@@ -215,6 +242,48 @@ def still_layout(scene, size, warnings):
     return layer, band_top, keep, s, x, y, mode
 
 
+# An image shown on blurred fill is a card, like a posted clip (make_composite.py):
+# rounded corners, a soft shadow under it and a faint light edge just outside it.
+STILL_RADIUS, STILL_RADIUS_SMALL = 18, 12   # corner radius; the small one for a small image
+STILL_SHADOW_BLUR, STILL_SHADOW_DROP, STILL_SHADOW_ALPHA = 12, 6, 130
+STILL_EDGE_ALPHA = 80
+STILL_SS = 4                  # drawn this many times larger, then scaled down: smooth curves
+
+
+def paste_card(base, pic, x, y):
+    """Paste pic onto base at (x, y) as a card lifted off the background. The
+    picture's own pixels are untouched apart from the rounded corners; the
+    shadow and the light edge are drawn around it, so they sit in the base and
+    move with it. Done with masks, so a card partly off the frame is fine."""
+    from PIL import Image, ImageChops, ImageDraw, ImageFilter
+    w, h = pic.size
+    r = STILL_RADIUS if min(w, h) >= 300 else STILL_RADIUS_SMALL
+    r = max(1, min(r, w // 2, h // 2))
+    ss = STILL_SS
+    ring = 2                                   # light edge width, outside the picture
+    pad = 3 * STILL_SHADOW_BLUR + STILL_SHADOW_DROP + ring
+
+    m = Image.new("L", (w * ss, h * ss), 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, w * ss - 1, h * ss - 1], radius=r * ss, fill=255)
+    shape = m.resize((w, h), Image.LANCZOS)
+    # Shadow: the shape dropped and blurred, on a canvas padded for its spread.
+    sh = Image.new("L", (w + 2 * pad, h + 2 * pad), 0)
+    sh.paste(shape, (pad, pad + STILL_SHADOW_DROP))
+    sh = sh.filter(ImageFilter.GaussianBlur(STILL_SHADOW_BLUR)).point(
+        lambda v: v * STILL_SHADOW_ALPHA // 255)
+    base.paste(Image.new("RGB", sh.size, BLACK), (x - pad, y - pad), sh)
+    # Light edge: a ring hugging the outside of the rounded picture.
+    big = Image.new("L", ((w + 2 * ring) * ss, (h + 2 * ring) * ss), 0)
+    ImageDraw.Draw(big).rounded_rectangle([0, 0, big.width - 1, big.height - 1],
+                                          radius=(r + ring) * ss, fill=255)
+    outer = big.resize((w + 2 * ring, h + 2 * ring), Image.LANCZOS)
+    inner = Image.new("L", outer.size, 0)
+    inner.paste(shape, (ring, ring))
+    edge = ImageChops.subtract(outer, inner).point(lambda v: v * STILL_EDGE_ALPHA // 255)
+    base.paste(Image.new("RGB", edge.size, WHITE), (x - ring, y - ring), edge)
+    base.paste(pic, (x, y), shape)
+
+
 def render_still(scene, warnings):
     from PIL import Image, ImageFilter
     pic = Image.open(scene["image"]).convert("RGB")
@@ -234,14 +303,14 @@ def render_still(scene, warnings):
         base = Image.blend(blur, Image.new("RGB", (W, H), BG), BLUR_TINT)
     scaled = pic.resize((max(1, round(pic.width * s)), max(1, round(pic.height * s))),
                         Image.LANCZOS)
-    base.paste(scaled, (round(x), round(y)))
+    if mode == "full-bleed" or scene.get("_hook"):
+        base.paste(scaled, (round(x), round(y)))
+    else:
+        paste_card(base, scaled, round(x), round(y))
     # A dark gradient behind the header and caption band keeps the tags,
-    # headline and captions readable over whatever sits behind them.
-    fade = content_top(scene) + 20
-    grad = Image.new("L", (1, H))
-    for yy in range(min(fade, H)):
-        grad.putpixel((0, yy), int(150 * (1 - yy / fade)))
-    base.paste(Image.new("RGB", (W, H), BLACK), (0, 0), grad.resize((W, H)))
+    # headline and captions readable over whatever sits behind them (the
+    # same fade a clip gets in clip_to_video).
+    base.paste(Image.new("RGB", (W, H), BLACK), (0, 0), header_fade(scene).getchannel("A"))
     return [(base, layer, 0.0)]
 
 
@@ -284,6 +353,22 @@ def card_lit_end(times, dur):
     """How many key-sentence words are lit on the shot's last frame."""
     last = (frames_for(dur) - 1) / FPS
     return sum(1 for t in times if t <= last + 1e-9)
+
+
+def marker_band(im, box, color=YELLOW, ss=4):
+    """Paint one highlighter stroke: a yellow band with softly rounded ends
+    covering box = (x0, y0, x1, y1). Drawn at `ss` times the size and scaled
+    down so the ends are smooth."""
+    from PIL import Image, ImageDraw
+    x0, y0, x1, y1 = (int(round(v)) for v in box)
+    w, h = x1 - x0, y1 - y0
+    if w <= 0 or h <= 0:
+        return
+    mask = Image.new("L", (w * ss, h * ss), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w * ss - 1, h * ss - 1],
+                                           radius=min(h, w) * ss * 0.28, fill=255)
+    mask = mask.resize((w, h), Image.LANCZOS)
+    im.paste(Image.new("RGB", (w, h), color), (x0, y0), mask)
 
 
 def render_card(scene, dur):
@@ -370,18 +455,33 @@ def render_card(scene, dur):
             y += 36
         y += 30
         lines = wrap(d, card.get("key_sentence", ""), f3, 580)
-        d.rectangle([40, y, 680, y + len(lines) * 46 + 24], fill=PANEL)
-        yy, k = y + 12, 0
+        # The key sentence sits on a panel like the end card's summary panels
+        # (rounded, shaded, soft shadow), not a flat strip.
+        plate, ppad = panel_plate(640, len(lines) * 46 + 24)
+        if im.mode == "RGBA":
+            im.alpha_composite(plate, dest=(40 - ppad, y - ppad))
+        else:
+            im.paste(plate, (40 - ppad, y - ppad), plate)
+        # Each line's band runs yy-2 to yy+42, lines 46px apart: starting at
+        # y+15 centres the bands in the panel (13px above and below, as at
+        # the left), and the text is centred in its band.
+        yy, k = y + 15, 0
         for line in lines:
             x = 60
+            spans = []                      # (word, x, lit) for this line
             for w in line.split():
-                ww = d.textlength(w, font=f3)
-                lit = k < n_lit
-                if lit:
-                    d.rectangle([x - 4, yy - 2, x + ww + 4, yy + 42], fill=YELLOW)
-                d.text((x, yy), w, font=f3, fill=BLACK if lit else WHITE)
+                spans.append((w, x, k < n_lit))
                 x += d.textlength(w + " ", font=f3)
                 k += 1
+            # One continuous highlighter band under the lit words of the line
+            # (they are always a prefix of the line), growing word by word.
+            lit_spans = [s for s in spans if s[2]]
+            if lit_spans:
+                last_w, last_x, _ = lit_spans[-1]
+                marker_band(im, (spans[0][1] - 7, yy - 2,
+                                 last_x + d.textlength(last_w, font=f3) + 7, yy + 42))
+            for w, wx, lit in spans:
+                d.text((wx, yy), w, font=f3, fill=BLACK if lit else WHITE)
             yy += 46
         return im
 
@@ -426,6 +526,162 @@ def diagram_plate(scene):
     return glow.filter(ImageFilter.GaussianBlur(18))
 
 
+# Diagram nodes and timeline dots share the summary panels' look (panel_plate):
+# rounded, a gentle top-to-bottom shade, a soft shadow. Each is drawn once as a
+# small RGBA plate (face + shadow, shadow pixels black with their own alpha) and
+# cached, then laid on a frame: alpha-composited onto a transparent or RGBA
+# frame, pasted through its alpha onto an opaque one, so no dark halos either way.
+NODE_RADIUS = 14
+NODE_SHADOW_BLUR, NODE_SHADOW_DROP, NODE_SHADOW_ALPHA = 5, 5, 120
+NODE_SHADE_UP, NODE_SHADE_DOWN = 0.06, 0.12     # lighten the top / darken the bottom by this share
+LINE_SHADOW_BLUR, LINE_SHADOW_DROP, LINE_SHADOW_ALPHA = 3, 3, 110
+_PLATES = {}
+
+
+def lay(im, plate, xy):
+    """Lay an RGBA plate on im (RGB or RGBA) with its top-left at xy."""
+    if im.mode == "RGBA":
+        im.alpha_composite(plate, (int(xy[0]), int(xy[1])))
+    else:
+        im.paste(plate, (int(xy[0]), int(xy[1])), plate)
+
+
+def shadow_of(im, mask, blur=LINE_SHADOW_BLUR, drop=LINE_SHADOW_DROP, alpha=LINE_SHADOW_ALPHA):
+    """Lay a soft black shadow of mask (an "L" image the size of im: what was
+    drawn crisp) under it, offset down by drop. Call before drawing the shapes."""
+    from PIL import Image, ImageChops, ImageFilter
+    m = ImageChops.offset(mask, 0, drop).filter(ImageFilter.GaussianBlur(blur))
+    layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    layer.putalpha(m.point(lambda v: v * alpha // 255))
+    lay(im, layer, (0, 0))
+
+
+def lifted_plate(w, h, fill, radius, blur, drop, shadow_alpha, shape="rect", outline=None):
+    """(RGBA plate, pad): a w x h box or ellipse of fill, shaded (a little
+    lighter on top, darker below) with a light top edge and a soft shadow, drawn
+    4x and scaled down; pad pixels are added on every side for the shadow."""
+    key = (w, h, fill, radius, blur, drop, shadow_alpha, shape, outline)
+    if key in _PLATES:
+        return _PLATES[key]
+    from PIL import Image, ImageDraw, ImageFilter
+    s = SUPERSAMPLE
+    pad = 3 * blur + drop
+
+    def mask(**kw):
+        m = Image.new("L", (w * s, h * s), 0)
+        dr = ImageDraw.Draw(m)
+        if shape == "ellipse":
+            dr.ellipse([0, 0, w * s - 1, h * s - 1], **kw)
+        else:
+            dr.rounded_rectangle([0, 0, w * s - 1, h * s - 1], radius=radius * s, **kw)
+        return m.resize((w, h), Image.LANCZOS)
+
+    shape_m = mask(fill=255)
+    shade = Image.linear_gradient("L").resize((w, h), Image.BILINEAR)    # 0 top, 255 bottom
+    top = tuple(round(c + (255 - c) * NODE_SHADE_UP) for c in fill)
+    bottom = tuple(round(c * (1 - NODE_SHADE_DOWN)) for c in fill)
+    out = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
+    sh = Image.new("L", out.size, 0)
+    sh.paste(shape_m, (pad, pad + drop))
+    out.putalpha(sh.filter(ImageFilter.GaussianBlur(blur)).point(lambda v: v * shadow_alpha // 255))
+    face = Image.composite(Image.new("RGB", (w, h), bottom), Image.new("RGB", (w, h), top),
+                           shade).convert("RGBA")
+    face.putalpha(shape_m)
+    out.alpha_composite(face, (pad, pad))
+    edge = mask(outline=255, width=int(1.5 * s))
+    fade = shade.point(lambda v: 60 - 50 * v // 255)                     # light edge, strongest on top
+    light = Image.new("RGBA", (w, h), WHITE + (0,))
+    light.putalpha(Image.composite(fade, Image.new("L", (w, h), 0), edge))
+    out.alpha_composite(light, (pad, pad))
+    if outline:                                   # a crisp dark ring (timeline dots)
+        ring = mask(outline=255, width=2 * s)
+        dark = Image.new("RGBA", (w, h), outline + (0,))
+        dark.putalpha(ring)
+        out.alpha_composite(dark, (pad, pad))
+    _PLATES[key] = (out, pad)
+    return out, pad
+
+
+# Diagram links. An arrow is a rounded stroke with a notched ("stealth") head,
+# stopping LINK_CLEAR short of both boxes. When the denial lands, the denied
+# link's arrow gives way to a round red badge with a white X, centred in the
+# gap and sized to it so it never touches a box. All drawn SUPERSAMPLE times
+# larger, then scaled down.
+LINK_W = 6                   # arrow stroke
+LINK_HEAD_W, LINK_HEAD_L = 28, 22    # arrowhead width and length
+LINK_CLEAR = 10              # space between an arrow and the boxes it joins
+DENY_RED = (214, 40, 40)
+DENY_MAX, DENY_MIN = 58, 30          # the badge's diameter, fitted to the gap
+
+
+def _round_line(dr, p0, p1, width, fill):
+    """A line with round caps (PIL lines have square ends)."""
+    dr.line([p0, p1], fill=fill, width=width)
+    r = width / 2
+    for x, y in (p0, p1):
+        dr.ellipse([x - r, y - r, x + r, y + r], fill=fill)
+
+
+def link_plate(length, color):
+    """(RGBA plate, pad): a downward arrow `length` px long, tip at the
+    bottom, with a soft shadow."""
+    key = ("link", length, color)
+    if key in _PLATES:
+        return _PLATES[key]
+    from PIL import Image, ImageDraw, ImageFilter
+    s = SUPERSAMPLE
+    w = LINK_HEAD_W + 4
+    pad = 3 * LINE_SHADOW_BLUR + LINE_SHADOW_DROP
+    m = Image.new("L", (w * s, length * s), 0)
+    dr = ImageDraw.Draw(m)
+    cx, lw = w * s / 2, LINK_W * s
+    hl, hw = LINK_HEAD_L * s, LINK_HEAD_W * s / 2
+    tip = length * s - 1
+    notch = tip - hl * 0.72
+    _round_line(dr, (cx, lw / 2), (cx, notch), lw, 255)
+    dr.polygon([(cx, tip), (cx - hw, tip - hl), (cx, notch), (cx + hw, tip - hl)], fill=255)
+    m = m.resize((w, length), Image.LANCZOS)
+    out = Image.new("RGBA", (w + 2 * pad, length + 2 * pad), (0, 0, 0, 0))
+    sh = Image.new("L", out.size, 0)
+    sh.paste(m, (pad, pad + LINE_SHADOW_DROP))
+    out.putalpha(sh.filter(ImageFilter.GaussianBlur(LINE_SHADOW_BLUR))
+                 .point(lambda v: v * LINE_SHADOW_ALPHA // 255))
+    face = Image.new("RGBA", (w, length), color + (0,))
+    face.putalpha(m)
+    out.alpha_composite(face, (pad, pad))
+    _PLATES[key] = (out, pad)
+    return out, pad
+
+
+def deny_badge(dia):
+    """(RGBA plate, pad): the denial mark, a red disc with a white ring and
+    a white X with round ends, over a soft shadow."""
+    key = ("deny", dia)
+    if key in _PLATES:
+        return _PLATES[key]
+    from PIL import Image, ImageDraw, ImageFilter
+    s = SUPERSAMPLE
+    pad = 3 * NODE_SHADOW_BLUR + NODE_SHADOW_DROP
+    big = Image.new("RGBA", (dia * s, dia * s), (0, 0, 0, 0))
+    dr = ImageDraw.Draw(big)
+    ring = max(2, round(dia * 0.06)) * s
+    dr.ellipse([0, 0, dia * s - 1, dia * s - 1], fill=WHITE + (255,))
+    dr.ellipse([ring, ring, dia * s - 1 - ring, dia * s - 1 - ring], fill=DENY_RED + (255,))
+    c, r = dia * s / 2, dia * s * 0.2
+    sw = round(dia * 0.12 * s)
+    _round_line(dr, (c - r, c - r), (c + r, c + r), sw, WHITE + (255,))
+    _round_line(dr, (c - r, c + r), (c + r, c - r), sw, WHITE + (255,))
+    face = big.resize((dia, dia), Image.LANCZOS)
+    out = Image.new("RGBA", (dia + 2 * pad, dia + 2 * pad), (0, 0, 0, 0))
+    sh = Image.new("L", out.size, 0)
+    sh.paste(face.getchannel("A"), (pad, pad + NODE_SHADOW_DROP))
+    out.putalpha(sh.filter(ImageFilter.GaussianBlur(NODE_SHADOW_BLUR))
+                 .point(lambda v: v * NODE_SHADOW_ALPHA // 255))
+    out.alpha_composite(face, (pad, pad))
+    _PLATES[key] = (out, pad)
+    return out, pad
+
+
 def render_diagram(scene, dur):
     """Diagram stages. With "motion_clip" the stages are transparent
     overlays, drawn over the AI motion clip by render_shot."""
@@ -442,23 +698,36 @@ def render_diagram(scene, dur):
     def frame(count, cross):
         im = Image.new("RGBA", (W, H), (0, 0, 0, 0)) if transparent else Image.new("RGB", (W, H), BG)
         d = ImageDraw.Draw(im)
-        y = top
+        f = font(BOLD, 34)
+
+        # The links first, then the boxes, the denial badge and the words, each
+        # plate with its own cached shadow: every frame is drawn fresh, so
+        # shadows never stack from one stage to the next.
+        box_h = 65
+        gap = step - box_h
+        length = max(int(round(gap - 2 * LINK_CLEAR)), LINK_HEAD_L + 6)
+        for i in range(count - 1):
+            if cross and i == cross_at:
+                continue                 # the denial badge takes this link's place
+            plate, pad = link_plate(length, YELLOW)
+            lay(im, plate, (round((W - plate.width) / 2),
+                            round(top + i * step + box_h + (gap - length) / 2) - pad))
+        y, boxes = top, []
         for i, name in enumerate(nodes[:count]):
-            f = font(BOLD, 34)
             tw = d.textlength(name, font=f)
             x = (W - tw) / 2 - 18
-            d.rounded_rectangle([x, y, x + tw + 36, y + 64], radius=10,
-                                fill=YELLOW if i == 0 else WHITE)
-            d.text((x + 18, y + 14), name, font=f, fill=BLACK)
-            if i < count - 1:
-                d.line([(W // 2, y + NODE_H), (W // 2, y + step)], fill=YELLOW, width=5)
-                d.polygon([(W // 2 - 12, y + step - 16), (W // 2 + 12, y + step - 16),
-                           (W // 2, y + step)], fill=YELLOW)
+            plate, pad = lifted_plate(round(tw + 37), 65, YELLOW if i == 0 else WHITE, NODE_RADIUS,
+                                      NODE_SHADOW_BLUR, NODE_SHADOW_DROP, NODE_SHADOW_ALPHA)
+            lay(im, plate, (round(x) - pad, round(y) - pad))
+            boxes.append((name, x, y))
             y += step
         if cross:
-            cx, cy = W // 2, round(top + cross_at * step + (NODE_H + step) / 2)   # mid-arrow
-            d.line([(cx - 40, cy - 40), (cx + 40, cy + 40)], fill=RED, width=10)
-            d.line([(cx - 40, cy + 40), (cx + 40, cy - 40)], fill=RED, width=10)
+            dia = int(max(DENY_MIN, min(DENY_MAX, gap - 18)))
+            badge, bpad = deny_badge(dia)
+            cy = top + cross_at * step + box_h + gap / 2            # mid-link
+            lay(im, badge, (round(W / 2 - dia / 2) - bpad, round(cy - dia / 2) - bpad))
+        for name, x, y in boxes:
+            d.text((x + 18, y + 14), name, font=f, fill=BLACK)
         return im
 
     layer = text_layer(scene)[0]
@@ -589,9 +858,13 @@ def render_timeline(scene, dur):
         d = ImageDraw.Draw(im)
         if n:
             last_y = blocks[n - 1][0] + 12
+            lm = Image.new("L", (W, H), 0)           # the line's soft shadow, under it
+            ImageDraw.Draw(lm).line([(58, blocks[0][0] + 12), (58, last_y)], fill=255, width=4)
+            shadow_of(im, lm, blur=2, drop=2, alpha=100)
             d.line([(58, blocks[0][0] + 12), (58, last_y)], fill=YELLOW, width=4)
+        dot, dpad = lifted_plate(23, 23, YELLOW, 0, 3, 3, 140, shape="ellipse", outline=BLACK)
         for k, (by, lines, ev) in enumerate(blocks[:n]):
-            d.ellipse([47, by + 1, 69, by + 23], fill=YELLOW, outline=BLACK, width=2)
+            lay(im, dot, (47 - dpad, round(by) + 1 - dpad))
             d.text((90, by), ev["time"], font=f_time, fill=YELLOW)
             yy = by + 34
             for line in lines:
@@ -736,6 +1009,46 @@ def card_rows(scene):
 
 CHART_FILL_STEPS = 4         # a chart panel's fill grows in this many steps as it lands
 TRACK = (52, 86, 160)        # the unfilled part of a bar or ring, lighter than PANEL
+# A summary panel has depth, so the card reads as panels lifted off the
+# background rather than flat boxes: a top-to-bottom shade around PANEL, a
+# light edge strongest along the top, and a soft shadow below.
+PANEL_TOP, PANEL_BOTTOM = (30, 58, 124), (14, 30, 72)
+PANEL_RADIUS = 14
+PANEL_SHADOW_BLUR, PANEL_SHADOW_DROP, PANEL_SHADOW_ALPHA = 6, 6, 120
+PANEL_EDGE_TOP, PANEL_EDGE_BOTTOM = 70, 15     # light edge's alpha, top and bottom
+SUPERSAMPLE = 4              # drawn this many times larger, then scaled down: smooth curves
+
+
+def panel_plate(w, h):
+    """A summary panel's face, w x h, on a transparent RGBA image padded by
+    the returned pad on every side for its shadow: (image, pad)."""
+    from PIL import Image, ImageDraw, ImageFilter
+    s = SUPERSAMPLE
+    pad = 3 * PANEL_SHADOW_BLUR + PANEL_SHADOW_DROP
+
+    def rounded(**kw):
+        m = Image.new("L", (w * s, h * s), 0)
+        ImageDraw.Draw(m).rounded_rectangle([0, 0, w * s - 1, h * s - 1],
+                                            radius=PANEL_RADIUS * s, **kw)
+        return m.resize((w, h), Image.LANCZOS)
+
+    shape = rounded(fill=255)
+    shade = Image.linear_gradient("L").resize((w, h), Image.BILINEAR)   # 0 top, 255 bottom
+    out = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
+    shadow = Image.new("L", out.size, 0)
+    shadow.paste(shape, (pad, pad + PANEL_SHADOW_DROP))
+    out.putalpha(shadow.filter(ImageFilter.GaussianBlur(PANEL_SHADOW_BLUR))
+                 .point(lambda v: v * PANEL_SHADOW_ALPHA // 255))
+    face = Image.composite(Image.new("RGB", (w, h), PANEL_BOTTOM),
+                           Image.new("RGB", (w, h), PANEL_TOP), shade).convert("RGBA")
+    face.putalpha(shape)
+    out.alpha_composite(face, (pad, pad))
+    edge = rounded(outline=255, width=int(1.5 * s))
+    fade = shade.point(lambda v: PANEL_EDGE_TOP + (PANEL_EDGE_BOTTOM - PANEL_EDGE_TOP) * v // 255)
+    light = Image.new("RGBA", (w, h), WHITE + (0,))
+    light.putalpha(Image.composite(fade, Image.new("L", (w, h), 0), edge))
+    out.alpha_composite(light, (pad, pad))
+    return out, pad
 
 
 def is_chart(p):
@@ -829,9 +1142,28 @@ def render_summary(scene, dur, warnings):
             dd.text((x1 - pad - dd.textlength(right, font=f), y1 - pad - src_size - 2),
                     right, font=f, fill=SOURCE_TEXT)
 
-    def panel(dd, box, fixed, t=1.0):
+    under = {}      # what lay under each panel before it first landed
+
+    def face(im, x0, y0, x1, y1):
+        """The panel's face and shadow (panel_plate) on im. A chart panel is
+        drawn again as it fills: the pixels under it are put back first, so
+        its shadow and soft edges never build up."""
+        ix, iy = round(x0), round(y0)
+        plate, ppad = panel_plate(round(x1) - ix, round(y1) - iy)
+        at = (ix - ppad, iy - ppad)
+        if at in under:
+            im.paste(under[at], at)
+        else:
+            under[at] = im.crop(at + (at[0] + plate.width, at[1] + plate.height))
+        if im.mode == "RGBA":
+            im.alpha_composite(plate, dest=at)
+        else:
+            im.paste(plate, at, plate)
+
+    def panel(dd, box, fixed, t=1.0, im=None):
         x0, y0, x1, y1, p = box
-        dd.rounded_rectangle([x0, y0, x1, y1], radius=14, fill=PANEL)
+        if im is not None:
+            face(im, x0, y0, x1, y1)
         iw, ih = x1 - x0 - 2 * pad, y1 - y0 - 2 * pad
         src_h = src_size + 8 if p.get("source") else 0
         if "bar" in p:
@@ -994,9 +1326,9 @@ def render_summary(scene, dur, warnings):
             # A chart fills over its own slot, ending as the panel lands, so
             # the finished card's hold is unchanged.
             for j in range(1, CHART_FILL_STEPS):
-                panel(d, box, fixed=True, t=j / CHART_FILL_STEPS)
+                panel(d, box, fixed=True, t=j / CHART_FILL_STEPS, im=base)
                 grow.append((base.copy(), None, step * (k + j / CHART_FILL_STEPS)))
-        panel(d, box, fixed=True)
+        panel(d, box, fixed=True, im=base)
         stages.append((base.copy(), None, step * (k + 1)))
         grow.append(stages[-1])
     stages_all = len(boxes)
@@ -1400,12 +1732,35 @@ def stages_over_clip(stages, clip, clip_start, dur, work, name):
     return out
 
 
+HEADER_FADE_ALPHA = 160      # darkest at the top of the frame
+
+
+def header_fade(scene=None):
+    """A transparent RGBA layer, black from HEADER_FADE_ALPHA at the top,
+    easing to nothing just below the caption band (content_top + 20). The
+    ease keeps it dark through the tag, label and headline and light by the
+    captions, so the header reads over footage (the map's white post cards,
+    a bright sky) without hiding the picture."""
+    from PIL import Image
+    fade = content_top(scene or {}) + 20
+    grad = Image.new("L", (1, H), 0)
+    for yy in range(min(fade, H)):
+        grad.putpixel((0, yy), int(HEADER_FADE_ALPHA * (1 - (yy / fade) ** 2)))
+    layer = Image.new("RGBA", (W, H), BLACK + (0,))
+    layer.putalpha(grad.resize((W, H)))
+    return layer
+
+
 def clip_to_video(scene, dur, work, name):
     """A real or AI clip, cover-scaled to 720x1280 with no added zoom (the
     crop is centred on its 'keep' box, so a landscape AI video keeps its
     subject); its own audio dropped; its own caption/logo bands masked with delogo;
-    text layer looped on top."""
-    layer, _ = text_layer(scene)
+    text layer looped on top, over the same dark fade a still gets behind the
+    header and caption band, so the tag, source or AI label, headline and
+    captions read over any footage."""
+    text, _ = text_layer(scene)
+    layer = header_fade(scene)
+    layer.alpha_composite(text)
     png = os.path.join(work, f"{name}_text.png")
     layer.save(png)
     k = scene.get("keep") or (0, 0, 1, 1)
