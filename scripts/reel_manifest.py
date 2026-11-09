@@ -404,6 +404,10 @@ def validate(scenes, args, man=None):
             elif any(s.get(k) for k in ("image", "clip", "card", "diagram", "timeline", "stat")) \
                     or (s.get("end_card") and s.get("pointer")):
                 warnings.append(f"scene {sid}: has its visual; remove 'planned'.")
+        elif s.get("end_card") and s.get("pointer") is None:
+            errors.append(f"scene {sid}: the end card has no 'pointer', so it would show no link "
+                          "to the full story. Fill it with python3 scripts/fetch_preview.py "
+                          "<article url> (SKILL.md, \"End card\").")
         elif not has_visual and not s.get("end_card") and not args.allow_plain:
             errors.append(f"scene {sid}: no image, clip, card, diagram or timeline. Add one, or "
                           "pass --allow-plain and justify it in the delivery notes.")
