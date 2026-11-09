@@ -5,12 +5,15 @@ Two forms. The full card (an end card without summary panels) has the
 article's photo across the top, then the domain, the title and the outlet
 and date. The compact card (an end card with summary panels, where about
 150px is left) has the photo on the left at the card's height, its width
-following the photo's own shape. Without a photo, a tile in the reel's
-colour carries the outlet name, so the card keeps its shape for every
-source. The title is the article's headline word for word: it shrinks, the
-card grows, or the build stops; it is never shortened or clipped.
+following the photo's own shape. Without a photo, a tile in the outlet's
+own colour ("outlet_color", the page's theme colour; the reel's panel navy
+when there is none) carries the outlet name, so the card keeps its shape
+for every source. The title is the article's headline word for word: it
+shrinks, the card grows, or the build stops; it is never shortened or
+clipped.
 """
 
+import re
 from urllib.parse import urlparse
 
 from reel_common import *  # noqa: F401,F403
@@ -27,6 +30,53 @@ FULL_TILE_H = 360            # the full card's no-photo block (16:9 at 640 wide)
 TITLE_INK = (17, 17, 17)
 MUTED_INK = (102, 102, 102)
 FULL_RADIUS, COMPACT_RADIUS = 18, 14
+TILE_MIN_CONTRAST = 1.3      # an outlet colour paler than this against the card's
+                             # white melts into it (#FFFFFF, #F0F0F0); #FFCC00 is 1.5
+INK_MIN_CONTRAST = 3.0       # the outlet name is white when it reads at this
+                             # contrast (large bold text), else near-black
+
+
+def parse_hex(value):
+    """(r, g, b) from "#RRGGBB" (any case), or None."""
+    if isinstance(value, str) and re.fullmatch(r"#[0-9A-Fa-f]{6}", value.strip()):
+        v = value.strip()
+        return tuple(int(v[i:i + 2], 16) for i in (1, 3, 5))
+    return None
+
+
+def _luminance(rgb):
+    """Relative luminance (WCAG 2)."""
+    def ch(c):
+        c /= 255
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (ch(c) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a, b):
+    """WCAG contrast ratio between two colours, 1 to 21."""
+    la, lb = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def outlet_color_problem(value):
+    """Why value can't be the no-photo tile's colour, or None."""
+    rgb = parse_hex(value)
+    if rgb is None:
+        return f"must be a hex colour like \"#E4002B\", got {value!r}"
+    if contrast(rgb, WHITE) < TILE_MIN_CONTRAST:
+        return (f"{value} is too pale: the tile would melt into the card's white. Leave "
+                "'outlet_color' out and the tile uses the reel's navy")
+    return None
+
+
+def tile_colors(p):
+    """(fill, ink) for the no-photo tile: the outlet's colour, or the reel's
+    panel navy when the pointer has none; the name in white, or near-black
+    on a light colour such as yellow."""
+    fill = parse_hex(p.get("outlet_color")) or PANEL
+    ink = WHITE if contrast(fill, WHITE) >= INK_MIN_CONTRAST else TITLE_INK
+    return fill, ink
 
 
 def pointer_domain(url):
@@ -107,10 +157,12 @@ def _small_lines(d, text, path, size, max_w):
     raise RuntimeError(f"pointer text {text!r} doesn't fit the card; shorten it.")
 
 
-def _tile(w, h, outlet, size):
-    """The no-photo tile: the reel's panel colour with the outlet name in white."""
+def _tile(w, h, p, size):
+    """The no-photo tile: the outlet's colour (tile_colors) with its name."""
     from PIL import Image, ImageDraw
-    tile = Image.new("RGB", (w, h), PANEL)
+    outlet = p["outlet"]
+    fill, ink = tile_colors(p)
+    tile = Image.new("RGB", (w, h), fill)
     d = ImageDraw.Draw(tile)
     r = fit_lines(d, outlet, BOLD, size, 14, w - 16, h - 16)
     if not r:
@@ -119,7 +171,7 @@ def _tile(w, h, outlet, size):
     f, lines, lh = r
     y = (h - lh * len(lines)) / 2
     for ln in lines:
-        d.text(((w - d.textlength(ln, font=f)) / 2, y), ln, font=f, fill=WHITE)
+        d.text(((w - d.textlength(ln, font=f)) / 2, y), ln, font=f, fill=ink)
         y += lh
     return tile
 
@@ -145,7 +197,7 @@ def _rounded(card, radius):
 def preview_card(p, compact):
     """The pointer's link preview as an RGBA image CARD_W wide (transparent
     outside its rounded corners). p: the manifest's pointer ("outlet",
-    "title", "url", "date", optional "photo" and "keep"). compact: the form
+    "title", "url", "date", optional "photo", "keep" and "outlet_color"). compact: the form
     for the end card with summary panels. Raises RuntimeError when text
     can't be placed without clipping."""
     return _compact_card(p) if compact else _full_card(p)
@@ -165,7 +217,7 @@ def _full_card(p):
         top = cover_at(img, CARD_W, top_h, p.get("keep"))
     else:
         top_h = FULL_TILE_H
-        top = _tile(CARD_W, top_h, p["outlet"], 96)
+        top = _tile(CARD_W, top_h, p, 96)
     body_h = 20 + dom[2] * len(dom[1]) + 8 + title[2] * len(title[1]) + 10 \
         + meta[2] * len(meta[1]) + 24
     card = Image.new("RGB", (CARD_W, top_h + round(body_h)), WHITE)
@@ -211,7 +263,7 @@ def _compact_card(p):
                            "card uses the full card.")
     card = Image.new("RGB", (CARD_W, h), WHITE)
     card.paste(cover_at(img, slot_w, h, p.get("keep")) if img
-               else _tile(slot_w, h, p["outlet"], 38), (0, 0))
+               else _tile(slot_w, h, p, 38), (0, 0))
     cd = ImageDraw.Draw(card)
     y = (h - body_h) / 2 + 14
     y = _draw_lines(cd, col_x, y, dom[1], dom[0], dom[2], MUTED_INK) + 5

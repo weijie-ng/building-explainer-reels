@@ -5,10 +5,14 @@ Fill the end card's pointer from an article URL (SKILL.md, "End card").
   python3 scripts/fetch_preview.py <article url> [--photo-out FILE]
 
 Reads the page's own metadata (Open Graph and Twitter tags, JSON-LD, the
-<title>), downloads its share image, and prints the "pointer" block to paste
-into the manifest: {"outlet", "title", "url", "date", "photo"}. Notes go to
-stderr: every field it couldn't find, and a reminder to check the title
-against the page's headline word for word.
+<title>, the theme colour), downloads its share image, and prints the
+"pointer" block to paste into the manifest: {"outlet", "title", "url",
+"date", "photo", "outlet_color"}. "outlet_color" is the page's
+<meta name="theme-color"> (its light-mode one when it gives both), which
+colours the outlet tile the card draws when there is no photo; a missing
+or near-white theme colour leaves it out, and the tile uses the reel's
+navy. Notes go to stderr: every field it couldn't find, and a reminder to
+check the title against the page's headline word for word.
 
 No live browser is needed, only a page fetch. A site that blocks the fetch
 (paywall, bot wall) exits 1: fill the pointer by hand from the page text.
@@ -34,18 +38,22 @@ IMAGE_EXT = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 
 
 class _PageMeta(HTMLParser):
-    """Collects <meta property|name content>, the <title> text, JSON-LD
-    script bodies and the first <time datetime>."""
+    """Collects <meta property|name content>, every theme-color with its
+    media query, the <title> text, JSON-LD script bodies and the first
+    <time datetime>."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.meta, self.title, self.jsonld, self.time = {}, None, [], None
+        self.themes = []
         self._buf, self._in = [], None
 
     def handle_starttag(self, tag, attrs):
         a = {k.lower(): (v or "") for k, v in attrs}
         if tag == "meta":
             key = (a.get("property") or a.get("name") or "").lower()
+            if key == "theme-color" and a.get("content"):
+                self.themes.append((a["content"].strip(), a.get("media", "").lower()))
             if key and a.get("content") and key not in self.meta:
                 self.meta[key] = a["content"].strip()
         elif tag == "title" and self.title is None:
@@ -121,9 +129,37 @@ def strip_site_suffix(title, site):
     return title
 
 
+def css_to_hex(value):
+    """"#RRGGBB" from a CSS colour ("#c00", "#CC0000", "rgb(204,0,0)", "red"),
+    or None for anything else ("transparent", a variable, garbage)."""
+    try:
+        from PIL import ImageColor
+        rgb = ImageColor.getrgb(value.strip())
+    except (ImportError, ValueError, AttributeError):
+        return None
+    if len(rgb) == 4 and rgb[3] == 0:
+        return None      # fully transparent: no colour at all
+    return "#%02X%02X%02X" % tuple(rgb[:3])
+
+
+def theme_color(themes, tile_color=None):
+    """The page's own colour as "#RRGGBB", or None: a theme-color with no
+    media query or a light-mode one first, then any other but a dark-mode
+    one (usually near-black, not the outlet's colour), then the
+    msapplication-TileColor."""
+    order = [c for c, m in themes if "dark" not in m and (not m or "light" in m)] \
+        + [c for c, m in themes if m and "dark" not in m and "light" not in m] \
+        + [tile_color or ""]
+    for c in order:
+        hx = css_to_hex(c) if c else None
+        if hx:
+            return hx
+    return None
+
+
 def parse_preview(html, url):
     """The preview fields a page states about itself: {"outlet", "title",
-    "date_iso", "photo_url"}, each a string or None."""
+    "date_iso", "photo_url", "color"}, each a string or None."""
     p = _PageMeta()
     p.feed(html)
     p.close()
@@ -138,7 +174,8 @@ def parse_preview(html, url):
     photo = (m.get("og:image:secure_url") or m.get("og:image") or m.get("twitter:image")
              or _ld_image(ld.get("image")))
     return {"outlet": outlet or None, "title": title or None, "date_iso": date_iso or None,
-            "photo_url": urljoin(url, photo) if photo else None}
+            "photo_url": urljoin(url, photo) if photo else None,
+            "color": theme_color(p.themes, m.get("msapplication-tilecolor"))}
 
 
 def _card_date(d):
@@ -183,6 +220,22 @@ def pointer_block(found, url, today, photo_path):
     else:
         notes.append("no photo: the card draws the outlet tile. Add 'photo' only with the "
                      "article's own image, never the false material the reel debunks.")
+    color = found.get("color")
+    if color:
+        from reel_pointer import outlet_color_problem
+        problem = outlet_color_problem(color)
+        if problem:
+            notes.append(f"the page's theme colour {color} is too pale for the outlet tile (it "
+                         "would melt into the card's white), so it is left out and the tile "
+                         "uses the reel's navy.")
+        else:
+            block["outlet_color"] = color
+            notes.append(f"'outlet_color' {color} is the page's theme colour; the outlet tile "
+                         "takes it when there's no photo. Check it is the outlet's own colour "
+                         "(its header or logo), or delete it for the reel's navy.")
+    else:
+        notes.append("no theme colour on the page: the outlet tile uses the reel's navy. Add "
+                     "'outlet_color' (\"#RRGGBB\") only with the outlet's own colour.")
     return block, notes
 
 

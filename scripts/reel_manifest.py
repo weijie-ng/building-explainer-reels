@@ -69,7 +69,8 @@ def pointer_problems(p):
     """Why an end-card pointer can't be drawn, as messages (validate adds the
     scene). The pointer is a link preview the build draws (SKILL.md, "End
     card"): "outlet", "title" (the article's headline, word for word), "url"
-    and "date", and optionally "photo" (the article's own image) and "keep"."""
+    and "date", and optionally "photo" (the article's own image), "keep" and
+    "outlet_color" (the no-photo tile's colour, "#RRGGBB")."""
     if not isinstance(p, dict):
         return ["'pointer' must be an object with 'outlet', 'title', 'url' and 'date'."]
     errors = []
@@ -96,6 +97,11 @@ def pointer_problems(p):
                 and k[0] < k[2] and k[1] < k[3]):
             errors.append(f"pointer 'keep' must be [x0, y0, x1, y1] as fractions of the photo "
                           f"with x0 < x1 and y0 < y1, got {k!r}.")
+    if "outlet_color" in p:
+        from reel_pointer import outlet_color_problem
+        problem = outlet_color_problem(p["outlet_color"])
+        if problem:
+            errors.append(f"pointer 'outlet_color' {problem}.")
     if p.get("photo"):
         if not os.path.exists(p["photo"]):
             errors.append(f"pointer photo not found: {p['photo']}")

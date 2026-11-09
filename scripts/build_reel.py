@@ -163,12 +163,13 @@ Scene types:
   "source": "TRM LABS"}, ...]}. A vertical line with one dot per event,
   revealed one at a time. About 3 events fit per shot; use "shots" for more.
 - end_card: "headline" (e.g. "CHECK BEFORE YOU SHARE"), "pointer":
-  {"outlet", "title", "url", "date", "photo"?, "keep"?}: a link preview of
+  {"outlet", "title", "url", "date", "photo"?, "keep"?, "outlet_color"?}: a link preview of
   the referenced article, drawn by the build (reel_pointer.py). "title" is
   the article's headline word for word; "date" its publish date, or
   "Accessed <date>" when the page gives none; "photo" the article's own
   image (never false material), cropped centred on "keep". Without a photo
-  an outlet tile in the reel's colour is drawn. scripts/fetch_preview.py
+  an outlet tile is drawn in "outlet_color" ("#RRGGBB", the outlet's own
+  colour from its page's theme-color), or the reel's navy without one. scripts/fetch_preview.py
   <article url> prints the block. Also "disclosure" (one line: AI voice,
   AI illustrations, sources).
 - summary (on the end card only): {"panels": [{"value", "label", "source"} |

@@ -143,8 +143,8 @@ Inspect the images themselves; do not infer them from the commands' output.
   - its title matches that article's headline word for word (only a trailing site suffix such as " | CNA" removed);
   - its domain matches the article's URL, and its outlet and date match facts.md ("Accessed <date>" only when the page states no publish date);
   - its photo, if any, is that article's own image and is not false or unverified material;
-  - with no photo, the tile is in the reel's colour;
-  - no logo or outlet colour is on the card;
+  - with no photo, the tile is in the outlet's own colour (its `outlet_color`, which matches the outlet's site or logo) or, when the pointer has none, the reel's navy, and the outlet name on it is readable;
+  - no logo is on the card;
   - every line is readable in a full-size frame, and nothing is clipped.
 
   FAIL otherwise. Then check: one small disclosure line naming the AI voice, AI illustrations and sources; no silence after the final narration. If the end card has summary panels: they sit on the same card as the pointer (FAIL on a separate summary shot); every figure and wording matches facts.md at the source's strength and was already said in the reel; panels share one size, margin and type size; nothing is clipped or cut off; the captions sit above the panels without overlapping them; the compact card's title and domain are readable at full size; the whole card stays readable in a single full-size frame (a screenshot); every chart panel (proportion bar, donut, compare bars) draws the figure its `value` shows, from facts.md, with a bound drawn at the bound and its "<" or "over" kept, compare bars in one unit on one scale from zero, and any estimate's hedge in its label (FAIL otherwise, or if a chart is used where the comparison isn't the point and a plain figure would do); and FAIL if it tells the viewer what to do with it ("SAVE THIS", "screenshot", "share this") unless the user asked for that.
