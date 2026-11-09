@@ -31,7 +31,7 @@ Build it with `python3 scripts/make_composite.py spec.json --out post.mp4 --prev
 - **Where it sits.** The account strip starts below the caption band (y=408), with the clip right under it (y=448), as wide as the headline's column allows (x 40–680). A tall clip runs past y=1030 to the frame's bottom edge: a 9:16 reel is shown whole at 468×832, about 42% of the frame; kept inside the content band it would be 327×582, about 21%. A wider post (square, 16:9) is centred in the content band when it fits there.
 - **What's under the platform's UI.** For a tall post the script prints how much of the clip sits below y=1030 (the bottom ~30% of a 9:16 reel), and `--preview` shades it. The platform's caption, name and buttons cover that part, so nothing the line depends on may be there. If the key moment or the claim's own text sits low in the clip, pick another slice, or show a screenshot of the post instead.
 - **Its text.** Its logos, title boxes and on-screen graphics stay: inside the post they are part of the receipt and collide with nothing. Mask its running captions (`mask`, fractions of the clip) where they would be read as part of the reel, including below y=1030, where they would stack under the platform's own caption.
-- **Behind it** is the reel's blue over a blurred copy of the clip, as behind any image shown whole.
+- **How it looks.** The account strip and the clip are drawn as one card with rounded corners, a soft shadow and a faint light edge, so it reads as a post lifted off the reel. A hard square box reads as a screen grab pasted on. Behind it is the reel's blue over a blurred copy of the clip, as behind any image shown whole.
 - **Not in the hook.** The hook fills the frame, so the build rejects a post there. Open on footage or an AI video, and show the post after it.
 - **Logged** like a composite tile: the account as posted, the post URL and date go in the asset log (the script prints the row).
 
@@ -49,7 +49,7 @@ Build it with `python3 scripts/make_composite.py spec.json --out post.mp4 --prev
 Build it with `python3 scripts/make_composite.py spec.json --out composite.mp4 --preview`:
 - **What the script does:**
   - places 2–4 tiles below the caption band and inside the headline's column (x 40–680), 16px apart, with the reel's blue over a blurred fill behind them. Every clip keeps its own shape, shown whole; a clip is cropped around its `focus` only when its shape differs from the other tiles'. Side by side (`row`), the tiles stay inside the content band, narrowing when the band caps their height. A 2×2 `grid` of tall clips runs past y=1030 to the frame's bottom edge like a post (four 9:16 clips at 218×388 each, against 148×263 kept inside the band). Every account name stays above y=1030, and the script prints how much of the bottom row sits under the platform's UI (about 64% of four 9:16 clips), so nothing the line depends on may be in that part of those clips;
-  - draws each account's avatar and name exactly as given;
+  - draws each tile as a card like a post (rounded corners, soft shadow, the account's avatar and name in a dark strip on top), with the name exactly as given;
   - masks the source clips' captions per tile;
   - can bring the tiles in one after another (`stagger`).
 - **What it refuses:** a tile without its account, post URL and date, or a composite without the set's label.

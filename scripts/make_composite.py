@@ -5,7 +5,7 @@ Show real clips as the posts they are, in one 9:16 shot
 composite of real clips"):
 
 - one tile: someone's post (a reel, TikTok, Short or other posted video),
-  shown whole as a framed post with the account above it (the "post"
+  shown whole as a post card with the account above it (the "post"
   layout). It sits below the caption band and may run past the platform's
   bottom UI (KEEP_BOTTOM) to the frame's bottom edge, so a 9:16 reel is
   shown whole at 468x832 instead of 327x582. The script prints how much of
@@ -23,7 +23,9 @@ apart, so they never run to the frame's side edges. Behind the tiles is the reel
 first clip, like the blurred fill behind any image. Each tile is the
 account's own clip, only cropped, scaled, trimmed and synced; the source
 clips' burned-in captions can be masked per tile. Above each tile is the
-account's avatar (when given) and name, copied exactly from the post.
+account's avatar (when given) and name, copied exactly from the post, and
+the strip and clip are drawn as one card with rounded corners and a soft
+shadow.
 Several tiles can arrive one after another (--stagger) to show the spread.
 
 Usage:
@@ -75,6 +77,13 @@ SIDE = (W - HEADLINE_WRAP) // 2   # side padding: tiles stay inside the headline
                                   # column (x 40-680), never near the frame edge
 GAP = 16            # px between tiles
 CHIP_H = 40         # account strip above each tile
+CHIP_PAD = 10       # space between the card's edge and the avatar or name
+RADIUS_MAX, RADIUS_MIN = 18, 12   # card corners: as round as the end card's link
+                                  # preview (reel_pointer.py), less on small tiles
+SHADOW_BLUR, SHADOW_DROP, SHADOW_ALPHA = 12, 6, 130   # soft shadow under each card
+EDGE_ALPHA = 80     # faint light edge around each card
+STRIP_ALPHA = 170   # the dark account strip at the card's top
+SS = 4              # supersampling for smooth corners and edges
 AVATAR = 30         # avatar diameter
 NAME_SIZE = 22      # account name size; shrinks to NAME_MIN to fit, never truncated
 NAME_MIN = 14
@@ -204,17 +213,64 @@ def layout(spec, sizes):
     return mode, cells
 
 
+def radius(cell):
+    """Corner radius of a tile's card: smaller on a small tile."""
+    return max(RADIUS_MIN, min(RADIUS_MAX, cell[2] // 26))
+
+
+def _card_shape(w, h, r, square_top=False):
+    """Mask (L) of a w x h card with corners of radius r, drawn at SS times
+    the size and scaled down so the curves are smooth. square_top keeps the
+    top corners square: the clip's top edge meets its account strip."""
+    from PIL import Image, ImageDraw
+    m = Image.new("L", (w * SS, h * SS), 0)
+    d = ImageDraw.Draw(m)
+    d.rounded_rectangle([0, 0, w * SS - 1, h * SS - 1], radius=r * SS, fill=255)
+    if square_top:
+        d.rectangle([0, 0, w * SS - 1, r * SS], fill=255)
+    return m.resize((w, h), Image.LANCZOS)
+
+
+def mask_png(cell, path):
+    """The tile clip's alpha: its bottom corners rounded to match the card."""
+    _, _, w, h = cell
+    _card_shape(w, h, radius(cell), square_top=True).save(path)
+
+
 def chip_png(tile, cell, path):
-    """Transparent full-frame layer: this tile's avatar, account name and a
-    thin outline around the tile. Names are drawn exactly as given; a long
+    """Transparent full-frame layer laid over the tile's clip, which makes
+    the clip and its account strip read as one card with rounded corners: a
+    soft shadow outside the card, the dark strip with the avatar and account
+    name, and a faint light edge. Names are drawn exactly as given; a long
     name gets a smaller size, never an ellipsis."""
-    from PIL import Image, ImageDraw, ImageOps
+    from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
     x, y, w, h = cell
+    r = radius(cell)
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    cx0, cy0, ch = x, y - CHIP_H, CHIP_H + h          # the card: strip + clip
+    pad = SHADOW_BLUR * 3 + SHADOW_DROP
+    shape = _card_shape(w, ch, r)
+    # Shadow: the card's shape dropped and blurred, cut away inside the card
+    # so it never darkens the clip.
+    sh = Image.new("L", (w + 2 * pad, ch + 2 * pad), 0)
+    sh.paste(shape, (pad, pad + SHADOW_DROP))
+    sh = sh.filter(ImageFilter.GaussianBlur(SHADOW_BLUR)).point(lambda v: v * SHADOW_ALPHA // 255)
+    inside = Image.new("L", sh.size, 0)
+    inside.paste(shape, (pad, pad))
+    sh = ImageChops.multiply(sh, ImageChops.invert(inside))
+    im.paste((0, 0, 0, 255), (cx0 - pad, cy0 - pad), sh)
+    # The account strip: the card's top, down to where the clip starts.
+    strip = shape.crop((0, 0, w, CHIP_H)).point(lambda v: v * STRIP_ALPHA // 255)
+    im.alpha_composite(Image.merge("RGBA", [Image.new("L", strip.size, 0)] * 3 + [strip]),
+                       (cx0, cy0))
+    # A faint light edge along the whole card, over the clip's edge.
+    e = Image.new("L", (w * SS, ch * SS), 0)
+    ImageDraw.Draw(e).rounded_rectangle([0, 0, w * SS - 1, ch * SS - 1], radius=r * SS,
+                                        outline=EDGE_ALPHA, width=int(1.5 * SS))
+    e = e.resize((w, ch), Image.LANCZOS)
+    im.alpha_composite(Image.merge("RGBA", [Image.new("L", (w, ch), 255)] * 3 + [e]), (cx0, cy0))
     d = ImageDraw.Draw(im)
-    d.rectangle([x - 2, y - CHIP_H, x + w + 1, y + h + 1], fill=(0, 0, 0, 150))
-    d.rectangle([x - 2, y - 2, x + w + 1, y + h + 1], outline=(255, 255, 255, 200), width=2)
-    nx = x + 6
+    nx = x + CHIP_PAD
     cy = y - CHIP_H // 2
     if tile.get("avatar"):
         av = ImageOps.fit(Image.open(tile["avatar"]).convert("RGB"), (AVATAR * 4, AVATAR * 4))
@@ -224,7 +280,7 @@ def chip_png(tile, cell, path):
         mask = mask.resize((AVATAR, AVATAR), Image.LANCZOS)
         im.paste(av, (nx, cy - AVATAR // 2), mask)
         nx += AVATAR + 8
-    room = x + w - 6 - nx
+    room = x + w - CHIP_PAD - nx
     size = NAME_SIZE
     while size > NAME_MIN and d.textlength(tile["account"], font=font(BOLD, size)) > room:
         size -= 1
@@ -259,11 +315,13 @@ def build(spec, out, preview):
             warnings.append(f"{t['account']}: clip has {left:.2f}s from its start, under the "
                             f"{dur}s shot; its last frame would hold (a freeze).")
         cmd += ["-ss", f"{start:.3f}", "-t", f"{dur:.3f}", "-i", t["clip"]]
-    chips = []
     for i, (t, cell) in enumerate(zip(tiles, cells)):
         p = os.path.join(work, f"chip{i}.png")
         chip_png(t, cell, p)
-        chips.append(p)
+        cmd += ["-loop", "1", "-t", f"{dur:.3f}", "-i", p]
+    for i, cell in enumerate(cells):
+        p = os.path.join(work, f"mask{i}.png")
+        mask_png(cell, p)
         cmd += ["-loop", "1", "-t", f"{dur:.3f}", "-i", p]
 
     n = len(tiles)
@@ -285,6 +343,9 @@ def build(spec, out, preview):
         f.append(f"crop={w}:{h}:min(max({fx}*iw-{w // 2}\\,0)\\,iw-{w}):"
                  f"min(max({fy}*ih-{h // 2}\\,0)\\,ih-{h})")
         f.append(f"setsar=1,{hold},format=rgba")
+        g.append(f"{src}{','.join(f)}[v{i}]")
+        g.append(f"[{2 * n + i}:v]fps={FPS},format=gray[k{i}]")
+        f = ["alphamerge"]   # rounded bottom corners, matching the card
         delay = i * stagger
         if delay > 0:
             f.append(f"tpad=start_duration={delay:.3f}:start_mode=add:color=0x00000000,"
@@ -292,12 +353,13 @@ def build(spec, out, preview):
         # The first tile is there from frame 0, so the shot never opens on
         # an empty background; later tiles fade in on their turn.
         fade = f",fade=in:st={delay:.3f}:d={FADE}:alpha=1" if delay > 0 else ""
-        g.append(f"{src}{','.join(f)}{fade}[t{i}]")
+        g.append(f"[v{i}][k{i}]{','.join(f)}{fade}[t{i}]")
         g.append(f"[{n + i}:v]fps={FPS},format=rgba{fade}[c{i}]")
     last = "[bg]"
     for i, (x, y, w, h) in enumerate(cells):
-        g.append(f"{last}[c{i}]overlay=0:0[m{i}a]")
-        g.append(f"[m{i}a][t{i}]overlay={x}:{y}[m{i}]")
+        # The clip first, then its card layer over it (shadow, strip, edge).
+        g.append(f"{last}[t{i}]overlay={x}:{y}[m{i}a]")
+        g.append(f"[m{i}a][c{i}]overlay=0:0[m{i}]")
         last = f"[m{i}]"
     g.append(f"{last}format=yuv420p[out]")
     cmd += ["-filter_complex", ";".join(g), "-map", "[out]", "-an",
