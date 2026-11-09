@@ -721,14 +721,19 @@ class Build:
         # parsing), so ffmpeg runs from the caption file's folder.
         out_abs = os.path.abspath(out)
         os.makedirs(os.path.dirname(out_abs), exist_ok=True)
+        # No -frames:v: it ends the file at the last frame's start, which cuts
+        # the audio's final AAC packet(s), so the copy check below failed on
+        # some reel lengths. The joined video already has exactly `frames`
+        # frames, and the caption burn keeps them; checked after the mux.
         r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", video, "-i", os.path.abspath(audio),
                             "-vf", f"ass={os.path.basename(ass)}:fontsdir=fonts",
                             "-map", "0:v", "-map", "1:a",
-                            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-frames:v", str(frames),
+                            "-c:v", "libx264", "-pix_fmt", "yuv420p",
                             "-c:a", "copy", out_abs],
                            capture_output=True, text=True, cwd=folder)
         if r.returncode != 0:
             sys.exit(f"Final mux failed:\n{r.stderr[-2000:]}")
+        verify_video(out_abs, frames, "reel")
         # Scope check: the reel's audio must be the audio stage's stream,
         # copied unchanged; and say whether it changed since the last mux.
         md5 = stream_md5(out_abs, "a")
